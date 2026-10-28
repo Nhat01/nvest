@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: savings-platform
+  datasource:
+    url: jdbc:postgresql://localhost:5432/savings
+    username: savings
+    password: savings
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
