@@ -1,0 +1,45 @@
+package vn.nvest.savings.wallet;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.Immutable;
+
+@Entity
+@Getter
+@Setter
+@NoArgsConstructor
+@Immutable
+@Table(name = "ledger_transactions")
+public class LedgerTransaction {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tx_type", nullable = false)
+    private LedgerTxType txType;
+
+    @Column(name = "idempotency_key", nullable = false)
+    private String idempotencyKey;
+
+    @Column(name = "reference_type")
+    private String referenceType;
+
+    @Column(name = "reference_id")
+    private Long referenceId;
+
+    @Column(name = "description")
+    private String description;
+
+    public LedgerTransaction(LedgerTxType txType, String idempotencyKey,
+                             String referenceType, Long referenceId, String description) {
+        this.txType = txType;
+        this.idempotencyKey = idempotencyKey;
+        this.referenceType = referenceType;
+        this.referenceId = referenceId;
+        this.description = description;
+    }
+}

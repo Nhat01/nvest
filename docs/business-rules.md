@@ -14,6 +14,7 @@ Tài liệu gốc của dự án. Mọi code và test phải tham chiếu theo m
 - [F. Rút trước hạn](#f-rút-trước-hạn)
 - [G. Nạp và rút qua bên thứ ba](#g-nạp-và-rút-qua-bên-thứ-ba)
 - [H. Sổ cái](#h-sổ-cái)
+- [I. Ràng buộc bổ sung từ thiết kế database](#i-ràng-buộc-bổ-sung-từ-thiết-kế-database)
 
 ---
 
@@ -131,6 +132,17 @@ ACTIVE ──► MATURED ──► CLOSED     (nhận gốc + lãi về ví)
 | **R34** | Tiền lãi trả cho user lấy từ **ví nền tảng** (`PLATFORM_INTEREST_POOL`). Mỗi giao dịch ghi hai chiều: ví nền tảng giảm, ví user tăng. |
 | **R35** | Mọi thao tác ghi tiền có `idempotency_key`. Cùng key thì chỉ thực hiện một lần. |
 
+## I. Ràng buộc bổ sung từ thiết kế database
+
+Hai quy tắc này phát sinh khi thiết kế bảng ở Bước 3 và được database bảo vệ trực tiếp.
+
+| Mã | Quy tắc | Được bảo vệ bởi |
+|---|---|---|
+| **R36** | Lãi suất sản phẩm nằm trong khoảng **0% đến 20%/năm**. Admin nhập sai (ví dụ 60%) thì bị từ chối. | API validation + `ck_products_rate` |
+| **R37** | Hệ thống có đúng 3 ví nền tảng: `PLATFORM_EXTERNAL` (đại diện thế giới bên ngoài, được phép âm), `PLATFORM_SAVINGS_CUSTODY` (giữ gốc các gói đang chạy), `PLATFORM_INTEREST_POOL` (nguồn trả lãi). Mỗi giao dịch ledger có **tổng các dòng bằng 0**. | `ux_wallets_system_type` + kiểm tra trong service và test |
+
+Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), nhưng ví nền tảng được phép âm vì chúng đại diện cho dòng tiền vào/ra hệ thống.
+
 ---
 
 ## Số liệu mẫu dùng cho test
@@ -139,4 +151,4 @@ ACTIVE ──► MATURED ──► CLOSED     (nhận gốc + lãi về ví)
 |---|---|---|
 | Lãi đủ kỳ | 10.000.000đ, 6%, 90 ngày | **147.945đ** |
 | Rút sớm | 10.000.000đ, 0,5%, 40 ngày | **5.479đ** |
-| Kỳ 2 của `RENEW_ALL` | 10.147.945đ, 6%, 90 ngày | **150.134đ** |
+| Kỳ 2 của `RENEW_ALL` | 10.147.945đ, 6%, 90 ngày | **150.133đ** |
