@@ -3,12 +3,10 @@ package vn.nvest.savings.wallet;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 import vn.nvest.savings.common.InsufficientFundsException;
 
 @Entity
 @Getter
-@Setter
 @NoArgsConstructor
 @Table(name = "wallets")
 public class Wallet {

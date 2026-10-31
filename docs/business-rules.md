@@ -152,3 +152,10 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | Lãi đủ kỳ | 10.000.000đ, 6%, 90 ngày | **147.945đ** |
 | Rút sớm | 10.000.000đ, 0,5%, 40 ngày | **5.479đ** |
 | Kỳ 2 của `RENEW_ALL` | 10.147.945đ, 6%, 90 ngày | **150.133đ** |
+
+## J. Giới hạn đã biết
+
+| Mã | Giới hạn | Khi nào cần xử lý |
+|---|---|---|
+| L1 | Các ví hệ thống (EXTERNAL, CUSTODY, INTEREST_POOL) bị khóa bởi mọi giao dịch liên quan, nên chúng được xử lý tuần tự. | Khi đo được độ trễ do xếp hàng ở các ví này. Hướng xử lý: chia nhỏ ví hệ thống, hoặc không lưu số dư ở ví hệ thống. |
+| L2 | Không được nạp entity Wallet trước khi gọi `LedgerService.post` trong cùng transaction (bản entity trong bộ nhớ đệm sẽ cũ so với dòng đã khóa). | Luôn áp dụng. Chỉ lấy id ví trước khi gọi `post`. |

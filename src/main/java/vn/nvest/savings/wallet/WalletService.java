@@ -36,8 +36,8 @@ public class WalletService {
     @Transactional
     public LedgerTransaction deposit(long userId, long amount, String idempotencyKey) {
         requirePositive(amount);
-        long userWalletId = userWallet(userId).getId();
-        long externalId = systemWallet(WalletType.PLATFORM_EXTERNAL).getId();
+        long userWalletId = userWalletId(userId);
+        long externalId = systemWalletId(WalletType.PLATFORM_EXTERNAL);
         return ledgerService.post(LedgerTxType.DEPOSIT, idempotencyKey, "DEPOSIT", null, "Deposit",
                 List.of(new LedgerLine(externalId, BalanceType.AVAILABLE, -amount),
                         new LedgerLine(userWalletId, BalanceType.AVAILABLE, amount)));
@@ -47,7 +47,7 @@ public class WalletService {
     @Transactional
     public LedgerTransaction holdForWithdrawal(long userId, long amount, String idempotencyKey) {
         requirePositive(amount);
-        long walletId = userWallet(userId).getId();
+        long walletId = userWalletId(userId);
         return ledgerService.post(LedgerTxType.WITHDRAW_HOLD, idempotencyKey, "WITHDRAWAL", null, "Hold for withdrawal",
                 List.of(new LedgerLine(walletId, BalanceType.AVAILABLE, -amount),
                         new LedgerLine(walletId, BalanceType.HELD, amount)));
@@ -57,7 +57,7 @@ public class WalletService {
     @Transactional
     public LedgerTransaction releaseHold(long userId, long amount, String idempotencyKey) {
         requirePositive(amount);
-        long walletId = userWallet(userId).getId();
+        long walletId = userWalletId(userId);
         return ledgerService.post(LedgerTxType.WITHDRAW_RELEASE, idempotencyKey, "WITHDRAWAL", null, "Release hold",
                 List.of(new LedgerLine(walletId, BalanceType.HELD, -amount),
                         new LedgerLine(walletId, BalanceType.AVAILABLE, amount)));
@@ -67,8 +67,8 @@ public class WalletService {
     @Transactional
     public LedgerTransaction confirmWithdrawal(long userId, long amount, String idempotencyKey) {
         requirePositive(amount);
-        long userWalletId = userWallet(userId).getId();
-        long externalId = systemWallet(WalletType.PLATFORM_EXTERNAL).getId();
+        long userWalletId = userWalletId(userId);
+        long externalId = systemWalletId(WalletType.PLATFORM_EXTERNAL);
         return ledgerService.post(LedgerTxType.WITHDRAW_CONFIRM, idempotencyKey, "WITHDRAWAL", null, "Confirm withdrawal",
                 List.of(new LedgerLine(userWalletId, BalanceType.HELD, -amount),
                         new LedgerLine(externalId, BalanceType.AVAILABLE, amount)));
@@ -79,8 +79,13 @@ public class WalletService {
                 .orElseThrow(() -> new WalletNotFoundException("No wallet for user " + userId));
     }
 
-    private Wallet systemWallet(WalletType type) {
-        return walletRepository.findByWalletType(type)
+    private long userWalletId(long userId) {
+        return walletRepository.findIdByUserId(userId)
+                .orElseThrow(() -> new WalletNotFoundException("No wallet for user " + userId));
+    }
+
+    private long systemWalletId(WalletType type) {
+        return walletRepository.findIdByWalletType(type)
                 .orElseThrow(() -> new WalletNotFoundException("System wallet missing: " + type));
     }
 
