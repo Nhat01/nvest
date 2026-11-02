@@ -1,4 +1,4 @@
-package vn.nvest.savings.wallet;
+package vn.nvest.savings.support;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -7,12 +7,13 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import vn.nvest.savings.wallet.WalletService;
 
 import java.util.TimeZone;
 import java.util.UUID;
 
 @SpringBootTest
-abstract class AbstractPostgresIntegrationTest {
+public abstract class AbstractPostgresIntegrationTest {
 
     static {
         // Test không đi qua hàm main, nên phải tự sửa lỗi múi giờ "Asia/Saigon" (xem Bước 1)

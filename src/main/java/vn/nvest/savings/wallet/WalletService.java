@@ -74,6 +74,19 @@ public class WalletService {
                         new LedgerLine(externalId, BalanceType.AVAILABLE, amount)));
     }
 
+    /** Chuyển gốc từ ví user sang ví giữ gốc (custody) khi mở gói tiết kiệm (R13). */
+    @Transactional
+    public LedgerTransaction moveToCustody(long userId, long amount, String idempotencyKey,
+                                           String referenceType, long referenceId) {
+        requirePositive(amount);
+        long userWalletId = userWalletId(userId);
+        long custodyId = systemWalletId(WalletType.PLATFORM_SAVINGS_CUSTODY);
+        return ledgerService.post(LedgerTxType.OPEN_SAVINGS, idempotencyKey, referenceType, referenceId,
+                "Open savings account",
+                List.of(new LedgerLine(userWalletId, BalanceType.AVAILABLE, -amount),
+                        new LedgerLine(custodyId, BalanceType.AVAILABLE, amount)));
+    }
+
     private Wallet userWallet(long userId) {
         return walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new WalletNotFoundException("No wallet for user " + userId));

@@ -7,6 +7,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import vn.nvest.savings.common.IdempotencyConflictException;
 import vn.nvest.savings.common.InsufficientFundsException;
+import vn.nvest.savings.support.AbstractPostgresIntegrationTest;
 
 import java.util.List;
 import java.util.UUID;

@@ -3,6 +3,7 @@ package vn.nvest.savings.wallet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import vn.nvest.savings.common.InsufficientFundsException;
+import vn.nvest.savings.support.AbstractPostgresIntegrationTest;
 
 import java.util.ArrayList;
 import java.util.List;
