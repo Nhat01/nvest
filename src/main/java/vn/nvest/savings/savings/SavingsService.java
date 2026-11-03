@@ -48,6 +48,8 @@ public class SavingsService {
             throw new IllegalArgumentException("amount must be positive");
         }
 
+        accountRepository.lockByIdempotencyKey(idempotencyKey);
+
         SavingsProduct product = productRepository.findByCode(productCode)
                 .orElseThrow(() -> new ProductNotFoundException("Unknown product: " + productCode));
 

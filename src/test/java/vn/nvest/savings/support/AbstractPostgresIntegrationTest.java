@@ -12,7 +12,7 @@ import vn.nvest.savings.wallet.WalletService;
 import java.util.TimeZone;
 import java.util.UUID;
 
-@SpringBootTest
+@SpringBootTest(properties = "nvest.scheduling.enabled=false")
 public abstract class AbstractPostgresIntegrationTest {
 
     static {

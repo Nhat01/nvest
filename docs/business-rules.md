@@ -16,6 +16,7 @@ Tài liệu gốc của dự án. Mọi code và test phải tham chiếu theo m
 - [H. Sổ cái](#h-sổ-cái)
 - [I. Ràng buộc bổ sung từ thiết kế database](#i-ràng-buộc-bổ-sung-từ-thiết-kế-database)
 - [J. Giới hạn đã biết](#j-giới-hạn-đã-biết)
+- [K. Tính lãi hàng ngày](#k-tính-lãi-hàng-ngày)
 
 ---
 
@@ -153,6 +154,16 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | **L1** | Các ví hệ thống (`EXTERNAL`, `CUSTODY`, `INTEREST_POOL`) bị khóa bởi mọi giao dịch liên quan, nên các giao dịch đó được xử lý tuần tự. | Khi **đo được** độ trễ do xếp hàng ở các ví này. Hướng xử lý: chia nhỏ ví hệ thống, hoặc không lưu số dư ở ví hệ thống. |
 | **L2** | Không được nạp entity `Wallet` trước khi gọi `LedgerService.post` trong cùng một transaction, vì bản entity trong bộ nhớ đệm sẽ cũ so với dòng đã khóa. Chỉ lấy **id** ví trước khi gọi `post`. | Luôn áp dụng. |
 
+## K. Tính lãi hàng ngày
+
+| Mã | Quy tắc |
+|---|---|
+| **R40** | Job tính lãi chạy mỗi ngày lúc 00:05 (giờ Việt Nam) và ghi lãi cho các ngày **đã kết thúc**, tức đến hết hôm qua. Lãi của ngày thứ n (ngày `start_date + n - 1`) chỉ được ghi sau khi ngày đó kết thúc. |
+| **R41** | Nếu job lỡ nhiều ngày, lần chạy sau **ghi bù** đủ các ngày còn thiếu theo đúng thứ tự. Mỗi gói có tối đa `term_days` dòng lãi, không bao giờ ghi quá kỳ hạn. |
+| **R42** | Mỗi gói được xử lý trong transaction riêng và khóa dòng gói. Chạy lặp lại hoặc nhiều instance chạy đồng thời đều không ghi trùng; một gói lỗi không chặn các gói khác (R20). |
+
+Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã gửi trọn vẹn, nên khớp với cách tính lãi rút trước hạn (R23, R24).
+
 ---
 
 ## Số liệu mẫu dùng cho test
@@ -162,3 +173,5 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | Lãi đủ kỳ | 10.000.000đ, 6%, 90 ngày | **147.945đ** |
 | Rút sớm | 10.000.000đ, 0,5%, 40 ngày | **5.479đ** |
 | Kỳ 2 của `RENEW_ALL` | 10.147.945đ, 6%, 90 ngày | **150.133đ** |
+| Lãi ngày 1 và ngày 2 | 10.000.000đ, 6% | **1.643đ** và **1.644đ** |
+| Tổng lãi 10 ngày đầu | 10.000.000đ, 6% | **16.438đ** |
