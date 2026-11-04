@@ -55,9 +55,18 @@ public class SavingsProduct {
 
     /** R3: số tiền gửi phải nằm trong khoảng cho phép của sản phẩm. */
     public void validateAmount(long amount) {
-        if (amount < minAmount || amount > maxAmount) {
+        if (!isAmountAllowed(amount)) {
             throw new IllegalArgumentException(
                     "Amount must be between " + minAmount + " and " + maxAmount + " (R3), got " + amount);
         }
+    }
+
+    public boolean isAmountAllowed(long amount) {
+        return amount >= minAmount && amount <= maxAmount;
+    }
+
+    /** Ngừng bán sản phẩm (admin). */
+    public void stopSale() {
+        this.status = ProductStatus.STOPPED;
     }
 }

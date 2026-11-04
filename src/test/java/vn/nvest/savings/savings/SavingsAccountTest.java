@@ -2,6 +2,7 @@ package vn.nvest.savings.savings;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 import vn.nvest.savings.common.InvalidStateTransitionException;
 
 import java.math.BigDecimal;
@@ -67,5 +68,27 @@ class SavingsAccountTest {
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> product.validateAmount(500_000_001))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    @DisplayName("R17, R44: gói tái tục nối tiếp gói cũ, dùng lãi suất hiện hành")
+    void renewFromContinuesTheChain() {
+        SavingsAccount parent = newAccount();
+        ReflectionTestUtils.setField(parent, "id", 7L);   // giả lập gói đã lưu DB
+        SavingsProduct currentProduct = new SavingsProduct("SAVE_90", "Tich luy 90 ngay", 90,
+                new BigDecimal("0.0550"), 1_000_000, 500_000_000);
+
+        SavingsAccount next = SavingsAccount.renewFrom(parent, currentProduct, 10_147_945);
+
+        assertThat(next.getParentId()).isEqualTo(7L);
+        assertThat(next.getCycleNo()).isEqualTo(2);
+        assertThat(next.getPrincipal()).isEqualTo(10_147_945);
+        assertThat(next.getAnnualRate()).isEqualByComparingTo("0.055");
+        assertThat(next.getStartDate()).isEqualTo(parent.getMaturityDate());
+        assertThat(next.getMaturityDate()).isEqualTo(parent.getMaturityDate().plusDays(90));
+        assertThat(next.getStatus()).isEqualTo(AccountStatus.ACTIVE);
+        assertThat(next.getMaturityOption()).isEqualTo(parent.getMaturityOption());
+        assertThat(next.getIdempotencyKey()).isEqualTo("renew:7");
+        assertThat(parent.getAnnualRate()).isEqualByComparingTo("0.06");   // gói cũ không bị đổi (R5)
     }
 }

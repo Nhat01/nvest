@@ -4,7 +4,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.nvest.savings.common.WalletNotFoundException;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class WalletService {
@@ -85,6 +87,37 @@ public class WalletService {
                 "Open savings account",
                 List.of(new LedgerLine(userWalletId, BalanceType.AVAILABLE, -amount),
                         new LedgerLine(custodyId, BalanceType.AVAILABLE, amount)));
+    }
+
+    /**
+     * Chuyển tiền khi quyết toán gói tiết kiệm trong MỘT giao dịch sổ cái (R45).
+     * Trả rỗng nếu không có đồng nào di chuyển (R46).
+     */
+    @Transactional
+    public Optional<LedgerTransaction> transferForSettlement(long userId, SettlementTransfer transfer,
+                                                             String idempotencyKey,
+                                                             String referenceType, long referenceId) {
+        if (transfer.isEmpty()) {
+            return Optional.empty();
+        }
+        long userWalletId = userWalletId(userId);
+        long custodyId = systemWalletId(WalletType.PLATFORM_SAVINGS_CUSTODY);
+        long poolId = systemWalletId(WalletType.PLATFORM_INTEREST_POOL);
+
+        List<LedgerLine> lines = new ArrayList<>();
+        addLine(lines, custodyId, transfer.poolToCustody() - transfer.custodyToUser());
+        addLine(lines, poolId, -(transfer.poolToUser() + transfer.poolToCustody()));
+        addLine(lines, userWalletId, transfer.custodyToUser() + transfer.poolToUser());
+
+        return Optional.of(ledgerService.post(LedgerTxType.MATURITY_SETTLEMENT, idempotencyKey,
+                referenceType, referenceId, "Savings maturity settlement", lines));
+    }
+
+    /** Chỉ thêm dòng khi có biến động thật (ledger cấm dòng amount = 0). */
+    private static void addLine(List<LedgerLine> lines, long walletId, long delta) {
+        if (delta != 0) {
+            lines.add(new LedgerLine(walletId, BalanceType.AVAILABLE, delta));
+        }
     }
 
     private Wallet userWallet(long userId) {

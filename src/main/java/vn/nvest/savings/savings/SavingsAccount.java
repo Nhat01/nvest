@@ -78,6 +78,27 @@ public class SavingsAccount {
         return account;
     }
 
+    /**
+     * Tạo gói kỳ tiếp theo khi tái tục (R17, R44). Lãi suất và kỳ hạn lấy theo sản phẩm hiện hành;
+     * ngày bắt đầu là ngày đáo hạn của gói cũ; tùy chọn đáo hạn được kế thừa.
+     */
+    public static SavingsAccount renewFrom(SavingsAccount parent, SavingsProduct product, long principal) {
+        SavingsAccount next = new SavingsAccount();
+        next.userId = parent.userId;
+        next.productId = product.getId();
+        next.parentId = parent.id;
+        next.cycleNo = parent.cycleNo + 1;
+        next.principal = principal;
+        next.annualRate = product.getAnnualRate();
+        next.termDays = product.getTermDays();
+        next.startDate = parent.maturityDate;
+        next.maturityDate = next.startDate.plusDays(product.getTermDays());
+        next.status = AccountStatus.ACTIVE;
+        next.maturityOption = parent.maturityOption;
+        next.idempotencyKey = "renew:" + parent.id;
+        return next;
+    }
+
     /** Cửa duy nhất để đổi trạng thái (R12). */
     public void transitionTo(AccountStatus next) {
         if (!status.canTransitionTo(next)) {

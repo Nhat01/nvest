@@ -17,6 +17,7 @@ Tài liệu gốc của dự án. Mọi code và test phải tham chiếu theo m
 - [I. Ràng buộc bổ sung từ thiết kế database](#i-ràng-buộc-bổ-sung-từ-thiết-kế-database)
 - [J. Giới hạn đã biết](#j-giới-hạn-đã-biết)
 - [K. Tính lãi hàng ngày](#k-tính-lãi-hàng-ngày)
+- [L. Quyết toán khi đáo hạn](#l-quyết-toán-khi-đáo-hạn)
 
 ---
 
@@ -95,7 +96,7 @@ ACTIVE ──► MATURED ──► CLOSED     (nhận gốc + lãi về ví)
 | Mã | Quy tắc |
 |---|---|
 | **R17** | Gói tái tục **cùng sản phẩm**, dùng **lãi suất hiện hành** của sản phẩm tại ngày đáo hạn, `cycle_no + 1`. |
-| **R18** | Nếu sản phẩm đã ngừng bán, hoặc gốc tái tục vượt mức tối đa R3, hệ thống **tự chuyển sang `PAYOUT_ALL`** và thông báo cho user. |
+| **R18** | Nếu sản phẩm đã ngừng bán, hoặc gốc tái tục nằm ngoài khoảng cho phép R3 của sản phẩm (vượt mức tối đa, hoặc dưới mức tối thiểu mới), hệ thống **tự chuyển sang `PAYOUT_ALL`** và ghi lý do vào `settlements.fallback_reason` để thông báo cho user. |
 | **R19** | Job đáo hạn chạy mỗi ngày lúc 00:05. Nếu lỡ nhiều ngày, lần chạy sau **xử lý bù tất cả gói có ngày đáo hạn ≤ hôm nay**. Lãi vẫn tính theo đúng ngày đáo hạn thực. |
 | **R20** | Mỗi gói xử lý trong transaction riêng. Gói lỗi được ghi lại để thử lại, không chặn các gói khác. |
 | **R21** | Đáo hạn rơi vào cuối tuần hoặc lễ vẫn xử lý bình thường (hệ thống mô phỏng, không phụ thuộc lịch ngân hàng). |
@@ -142,7 +143,7 @@ Hai quy tắc này phát sinh khi thiết kế bảng ở Bước 3 và được
 |---|---|---|
 | **R36** | Lãi suất sản phẩm nằm trong khoảng **0% đến 20%/năm**. Admin nhập sai (ví dụ 60%) thì bị từ chối. | API validation + `ck_products_rate` |
 | **R37** | Hệ thống có đúng 3 ví nền tảng: `PLATFORM_EXTERNAL` (đại diện thế giới bên ngoài, được phép âm), `PLATFORM_SAVINGS_CUSTODY` (giữ gốc các gói đang chạy), `PLATFORM_INTEREST_POOL` (nguồn trả lãi). Mỗi giao dịch ledger có **tổng các dòng bằng 0**. | `ux_wallets_system_type` + kiểm tra trong service và test |
-| **R38** | Mở gói bắt buộc có `idempotency_key` do client gửi (tối đa 80 ký tự). Gửi lại cùng key và cùng nội dung thì trả về gói đã mở, không trừ tiền lần hai. Cùng key nhưng khác số tiền, user hoặc sản phẩm thì bị từ chối. | `ux_savings_accounts_idempotency` + kiểm tra trong `SavingsService` |
+| **R38** | Mở gói bắt buộc có `idempotency_key` do client gửi (tối đa 80 ký tự). Gửi lại cùng key và cùng nội dung thì trả về gói đã mở, không trừ tiền lần hai. Cùng key nhưng khác số tiền, user hoặc sản phẩm thì bị từ chối. Nhiều request cùng key đến **đồng thời** được xếp hàng và đều nhận về cùng một gói. | `ux_savings_accounts_idempotency` + advisory lock theo key + kiểm tra trong `SavingsService` |
 | **R39** | "Ngày" nghiệp vụ (ngày mở gói, ngày đáo hạn, ngày tính lãi) luôn tính theo múi giờ `Asia/Ho_Chi_Minh`. | `Clock` cấu hình ở `ClockConfig` |
 
 Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), nhưng ví nền tảng được phép âm vì chúng đại diện cho dòng tiền vào/ra hệ thống.
@@ -153,6 +154,7 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 |---|---|---|
 | **L1** | Các ví hệ thống (`EXTERNAL`, `CUSTODY`, `INTEREST_POOL`) bị khóa bởi mọi giao dịch liên quan, nên các giao dịch đó được xử lý tuần tự. | Khi **đo được** độ trễ do xếp hàng ở các ví này. Hướng xử lý: chia nhỏ ví hệ thống, hoặc không lưu số dư ở ví hệ thống. |
 | **L2** | Không được nạp entity `Wallet` trước khi gọi `LedgerService.post` trong cùng một transaction, vì bản entity trong bộ nhớ đệm sẽ cũ so với dòng đã khóa. Chỉ lấy **id** ví trước khi gọi `post`. | Luôn áp dụng. |
+| **L3** | Chống mở trùng đồng thời dùng khóa advisory của PostgreSQL (`pg_advisory_xact_lock(hashtext(key))`), nên gắn chặt với Postgres. Hai key khác nhau có thể trùng mã băm 32 bit, khi đó chỉ bị xếp hàng nhầm với nhau chứ không sai kết quả. | Khi đổi sang database khác. |
 
 ## K. Tính lãi hàng ngày
 
@@ -163,6 +165,16 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | **R42** | Mỗi gói được xử lý trong transaction riêng và khóa dòng gói. Chạy lặp lại hoặc nhiều instance chạy đồng thời đều không ghi trùng; một gói lỗi không chặn các gói khác (R20). |
 
 Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã gửi trọn vẹn, nên khớp với cách tính lãi rút trước hạn (R23, R24).
+
+## L. Quyết toán khi đáo hạn
+
+| Mã | Quy tắc |
+|---|---|
+| **R43** | Lãi trả khi đáo hạn tính bằng công thức R8 cho toàn kỳ hạn, và phải **bằng tổng lãi đã ghi hàng ngày** (R10). Nếu lệch, quyết toán gói đó bị hủy và báo lỗi, thay vì trả sai tiền. Trước khi quyết toán, hệ thống ghi nốt các ngày lãi còn thiếu. |
+| **R44** | Gói tái tục bắt đầu vào **đúng ngày đáo hạn của gói cũ** (không phải ngày job chạy), có `cycle_no + 1`, `parent_id` trỏ về gói cũ, và kế thừa tùy chọn đáo hạn của gói cũ. Lãi suất và kỳ hạn lấy theo sản phẩm hiện hành (R17). |
+| **R45** | Tiền khi quyết toán di chuyển trong **một giao dịch sổ cái duy nhất**: `PAYOUT_ALL` trả gốc (từ `CUSTODY`) và lãi (từ `INTEREST_POOL`) cho user; `RENEW_PRINCIPAL` giữ gốc ở `CUSTODY`, trả lãi cho user; `RENEW_ALL` giữ gốc ở `CUSTODY` và chuyển lãi từ `INTEREST_POOL` sang `CUSTODY` để nhập vào gốc mới. |
+| **R46** | Quyết toán mà không có đồng nào di chuyển (lãi bằng 0 và tái tục) thì không ghi sổ cái, `settlements.ledger_transaction_id` để trống. |
+| **R47** | Chỉ quyết toán gói đang `ACTIVE` và đã đến hạn (`maturity_date <= hôm nay`). Gói đã quyết toán hoặc chưa đến hạn bị bỏ qua, nên chạy lặp hoặc chạy đồng thời đều không trả tiền hai lần. |
 
 ---
 
@@ -175,3 +187,6 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 | Kỳ 2 của `RENEW_ALL` | 10.147.945đ, 6%, 90 ngày | **150.133đ** |
 | Lãi ngày 1 và ngày 2 | 10.000.000đ, 6% | **1.643đ** và **1.644đ** |
 | Tổng lãi 10 ngày đầu | 10.000.000đ, 6% | **16.438đ** |
+| Gói 5.000.000đ, 4,5%, 30 ngày | `FLEX_30` | **18.493đ** |
+| Gói 500.000.000đ, 6%, 90 ngày | `SAVE_90` | **7.397.260đ** |
+| Gốc kỳ 3 của `RENEW_ALL` | 10.147.945đ + 150.133đ | **10.298.078đ** |
