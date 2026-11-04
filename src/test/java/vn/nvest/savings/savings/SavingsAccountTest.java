@@ -91,4 +91,25 @@ class SavingsAccountTest {
         assertThat(next.getIdempotencyKey()).isEqualTo("renew:7");
         assertThat(parent.getAnnualRate()).isEqualByComparingTo("0.06");   // gói cũ không bị đổi (R5)
     }
+
+    @Test
+    @DisplayName("R16: đổi tùy chọn đáo hạn khi gói còn ACTIVE")
+    void changeMaturityOptionWhileActive() {
+        SavingsAccount account = newAccount();   // PAYOUT_ALL
+
+        account.changeMaturityOption(MaturityOption.RENEW_ALL);
+
+        assertThat(account.getMaturityOption()).isEqualTo(MaturityOption.RENEW_ALL);
+    }
+
+    @Test
+    @DisplayName("R48: gói không còn ACTIVE thì không đổi được tùy chọn")
+    void cannotChangeOptionOnceNotActive() {
+        SavingsAccount account = newAccount();
+        account.transitionTo(AccountStatus.MATURED);
+
+        assertThatThrownBy(() -> account.changeMaturityOption(MaturityOption.RENEW_ALL))
+                .isInstanceOf(InvalidStateTransitionException.class);
+        assertThat(account.getMaturityOption()).isEqualTo(MaturityOption.PAYOUT_ALL);
+    }
 }

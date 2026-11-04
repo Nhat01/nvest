@@ -110,6 +110,9 @@ ACTIVE ──► MATURED ──► CLOSED     (nhận gốc + lãi về ví)
 | **R24** | Gửi chưa đủ 1 ngày thì lãi = 0. |
 | **R25** | Khi rút trước hạn, các khoản accrual cũ được **bỏ qua**, lãi thực trả chỉ theo R23. Gói chuyển `CLOSED_EARLY`. |
 | **R26** | Gói đang được job đáo hạn xử lý thì thao tác rút sớm bị từ chối hoặc chờ (khóa dòng, kiểm tra lại status). |
+| **R51** | Rút trước hạn chỉ với gói `ACTIVE` và **trước** ngày đáo hạn, do chính chủ gói thực hiện. Từ ngày đáo hạn trở đi gói được quyết toán theo tùy chọn đáo hạn, không còn rút sớm. Số ngày đã gửi trọn vẹn tính bằng `hôm nay - start_date`. |
+| **R52** | Gửi lại yêu cầu rút sớm cho gói đã rút sớm thì trả về biên lai cũ, không trả tiền lần hai. Chạy đồng thời với job đáo hạn thì chỉ một bên thắng: hoặc gói đã rút sớm (job bỏ qua), hoặc gói đã đáo hạn (rút sớm bị từ chối). |
+| **R53** | Biên lai rút sớm lưu `settlement_type = EARLY_WITHDRAWAL` và `option_applied = PAYOUT_ALL`, không có gói mới. Các dòng lãi hàng ngày đã ghi được giữ nguyên làm lịch sử nhưng **không** dùng để tính tiền (R25). |
 
 **Ví dụ:** gửi 10.000.000đ được 40 ngày rồi rút.
 
@@ -175,6 +178,9 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 | **R45** | Tiền khi quyết toán di chuyển trong **một giao dịch sổ cái duy nhất**: `PAYOUT_ALL` trả gốc (từ `CUSTODY`) và lãi (từ `INTEREST_POOL`) cho user; `RENEW_PRINCIPAL` giữ gốc ở `CUSTODY`, trả lãi cho user; `RENEW_ALL` giữ gốc ở `CUSTODY` và chuyển lãi từ `INTEREST_POOL` sang `CUSTODY` để nhập vào gốc mới. |
 | **R46** | Quyết toán mà không có đồng nào di chuyển (lãi bằng 0 và tái tục) thì không ghi sổ cái, `settlements.ledger_transaction_id` để trống. |
 | **R47** | Chỉ quyết toán gói đang `ACTIVE` và đã đến hạn (`maturity_date <= hôm nay`). Gói đã quyết toán hoặc chưa đến hạn bị bỏ qua, nên chạy lặp hoặc chạy đồng thời đều không trả tiền hai lần. |
+| **R48** | Đổi tùy chọn đáo hạn (R16) chỉ được với gói `ACTIVE`, do chính chủ gói thực hiện, và chỉ **trước** ngày đáo hạn. Thao tác khóa dòng gói nên không đụng độ với job đáo hạn: tùy chọn nào được chốt trước thì được áp dụng, không bao giờ bị mất. |
+| **R49** | Job đáo hạn chạy mỗi ngày lúc 00:05 và có thể lặp nhiều lượt trong một lần chạy (tối đa 10), để xử lý cả những gói tái tục mà bản thân chúng cũng đã đến hạn do job lỡ nhiều kỳ (R19). Gói đã thử một lần trong lần chạy thì không thử lại, tránh vòng lặp vô hạn khi có gói lỗi. |
+| **R50** | Quy ước khóa để tránh deadlock: mọi thao tác ghi tiền khóa **dòng gói trước, rồi các ví theo id tăng dần**. |
 
 ---
 
@@ -185,6 +191,7 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 | Lãi đủ kỳ | 10.000.000đ, 6%, 90 ngày | **147.945đ** |
 | Rút sớm | 10.000.000đ, 0,5%, 40 ngày | **5.479đ** |
 | Kỳ 2 của `RENEW_ALL` | 10.147.945đ, 6%, 90 ngày | **150.133đ** |
+| Rút sớm sau 10 ngày | 10.000.000đ, 0,5% | **1.369đ** |
 | Lãi ngày 1 và ngày 2 | 10.000.000đ, 6% | **1.643đ** và **1.644đ** |
 | Tổng lãi 10 ngày đầu | 10.000.000đ, 6% | **16.438đ** |
 | Gói 5.000.000đ, 4,5%, 30 ngày | `FLEX_30` | **18.493đ** |

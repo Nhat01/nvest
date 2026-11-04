@@ -225,6 +225,9 @@ class MaturityServiceIntegrationTest extends AbstractPostgresIntegrationTest {
         assertThat(reload(account.getId()).getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(settlementRepository.countByAccountId(account.getId())).isZero();
         assertThat(walletService.getBalance(userId).available()).isZero();   // chưa trả đồng nào
+
+        // Dọn gói "độc" để các job quét toàn DB không vấp phải nó
+        jdbc.update("UPDATE savings_accounts SET status = 'CLOSED_EARLY' WHERE id = ?", account.getId());
     }
 
     @Test

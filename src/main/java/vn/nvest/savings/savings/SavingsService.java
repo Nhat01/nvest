@@ -2,9 +2,7 @@ package vn.nvest.savings.savings;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.nvest.savings.common.IdempotencyConflictException;
-import vn.nvest.savings.common.ProductNotAvailableException;
-import vn.nvest.savings.common.ProductNotFoundException;
+import vn.nvest.savings.common.*;
 import vn.nvest.savings.wallet.WalletService;
 
 import java.time.Clock;
@@ -76,6 +74,27 @@ public class SavingsService {
                 userId, product, amount, option, LocalDate.now(clock), idempotencyKey));
         walletService.moveToCustody(userId, amount, "open-savings:" + idempotencyKey,
                 "SAVINGS_ACCOUNT", account.getId());
+        return account;
+    }
+
+    /**
+     * R16: đổi cách xử lý khi đáo hạn, bất cứ lúc nào trước ngày đáo hạn.
+     * Khóa dòng gói nên không đụng độ với job đáo hạn (R26, R48).
+     */
+    @Transactional
+    public SavingsAccount changeMaturityOption(long userId, long accountId, MaturityOption option) {
+        Objects.requireNonNull(option, "maturity option is required");
+
+        // Gói của người khác coi như không tồn tại, không để lộ sự có mặt của nó
+        SavingsAccount account = accountRepository.findByIdForUpdate(accountId)
+                .filter(a -> a.getUserId().equals(userId))
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountId));
+
+        if (!LocalDate.now(clock).isBefore(account.getMaturityDate())) {
+            throw new InvalidStateTransitionException("Account " + accountId
+                    + " has reached its maturity date; the option can no longer be changed (R16)");
+        }
+        account.changeMaturityOption(option);   // ném lỗi nếu gói không còn ACTIVE
         return account;
     }
 

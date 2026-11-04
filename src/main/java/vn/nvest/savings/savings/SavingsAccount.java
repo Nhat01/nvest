@@ -107,4 +107,13 @@ public class SavingsAccount {
         }
         this.status = next;
     }
+
+    /** R16, R48: chỉ đổi được khi gói còn ACTIVE. Kiểm tra ngày đáo hạn nằm ở SavingsService. */
+    public void changeMaturityOption(MaturityOption option) {
+        if (status != AccountStatus.ACTIVE) {
+            throw new InvalidStateTransitionException(
+                    "Account " + id + " is " + status + ": maturity option can only change while ACTIVE");
+        }
+        this.maturityOption = option;
+    }
 }

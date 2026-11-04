@@ -30,4 +30,10 @@ public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, 
     @Query("select a.id from SavingsAccount a where a.status = :status and a.startDate <= :asOf order by a.id")
     List<Long> findIdsByStatusStartedOnOrBefore(@Param("status") AccountStatus status,
                                                 @Param("asOf") LocalDate asOf);
+
+    /** Id các gói ACTIVE đã đến hạn (maturity_date <= asOf), cũ nhất trước. Khớp index ix_savings_accounts_due. */
+    @Query("select a.id from SavingsAccount a where a.status = :status and a.maturityDate <= :asOf "
+            + "order by a.maturityDate, a.id")
+    List<Long> findIdsByStatusMaturingOnOrBefore(@Param("status") AccountStatus status,
+                                                 @Param("asOf") LocalDate asOf);
 }
