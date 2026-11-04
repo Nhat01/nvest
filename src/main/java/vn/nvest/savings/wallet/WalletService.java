@@ -89,13 +89,22 @@ public class WalletService {
                         new LedgerLine(custodyId, BalanceType.AVAILABLE, amount)));
     }
 
+    /** Quyết toán đáo hạn (giữ nguyên chữ ký cũ, nên MaturityService không phải đổi). */
+    @Transactional
+    public Optional<LedgerTransaction> transferForSettlement(long userId, SettlementTransfer transfer,
+                                                             String idempotencyKey,
+                                                             String referenceType, long referenceId) {
+        return transferForSettlement(userId, transfer, LedgerTxType.MATURITY_SETTLEMENT,
+                idempotencyKey, referenceType, referenceId);
+    }
+
     /**
-     * Chuyển tiền khi quyết toán gói tiết kiệm trong MỘT giao dịch sổ cái (R45).
+     * Chuyển tiền khi kết thúc gói tiết kiệm (đáo hạn hoặc rút sớm) trong MỘT giao dịch sổ cái (R45).
      * Trả rỗng nếu không có đồng nào di chuyển (R46).
      */
     @Transactional
     public Optional<LedgerTransaction> transferForSettlement(long userId, SettlementTransfer transfer,
-                                                             String idempotencyKey,
+                                                             LedgerTxType txType, String idempotencyKey,
                                                              String referenceType, long referenceId) {
         if (transfer.isEmpty()) {
             return Optional.empty();
@@ -109,8 +118,10 @@ public class WalletService {
         addLine(lines, poolId, -(transfer.poolToUser() + transfer.poolToCustody()));
         addLine(lines, userWalletId, transfer.custodyToUser() + transfer.poolToUser());
 
-        return Optional.of(ledgerService.post(LedgerTxType.MATURITY_SETTLEMENT, idempotencyKey,
-                referenceType, referenceId, "Savings maturity settlement", lines));
+        String description = txType == LedgerTxType.EARLY_WITHDRAWAL
+                ? "Savings early withdrawal" : "Savings maturity settlement";
+        return Optional.of(ledgerService.post(txType, idempotencyKey,
+                referenceType, referenceId, description, lines));
     }
 
     /** Chỉ thêm dòng khi có biến động thật (ledger cấm dòng amount = 0). */

@@ -128,6 +128,9 @@ ACTIVE ──► MATURED ──► CLOSED     (nhận gốc + lãi về ví)
 | **R29** | Rút: phải đủ số dư khả dụng. Hệ thống **giữ (hold)** tiền trước, gọi cổng chi, thành công thì trừ hẳn, thất bại rõ ràng thì trả lại. |
 | **R30** | Kết quả mơ hồ (timeout) → trạng thái `UNKNOWN`, tiền vẫn bị giữ, job đối soát hỏi lại cổng. **Không bao giờ tự trả lại tiền khi chưa biết chắc.** |
 | **R31** | Giao dịch nạp `PENDING` quá 30 phút thì job đối soát hỏi lại cổng. Cổng báo thất bại hoặc không có thì đánh dấu `FAILED`. |
+| **R54** | Mỗi yêu cầu tạo giao dịch nạp/rút có `idempotency_key` do client gửi (tối đa 80 ký tự). Gửi lại cùng key và cùng nội dung thì trả giao dịch cũ; cùng key khác nội dung thì bị từ chối. Nhiều request cùng key đến đồng thời được xếp hàng. |
+| **R55** | Webhook sai chữ ký (hoặc thiếu chữ ký) bị từ chối, không đổi gì. Cổng là nguồn sự thật: webhook `SUCCEEDED` hợp lệ đến sau khi giao dịch nạp đã bị đánh dấu `FAILED` (thành công muộn) vẫn được cộng tiền; webhook `FAILED` đến sau khi đã `SUCCEEDED` bị bỏ qua. |
+| **R56** | Số tiền trong webhook khác số tiền của đơn thì từ chối (không cộng tiền), giao dịch giữ nguyên trạng thái để đối soát. |
 
 ## H. Sổ cái
 
@@ -158,6 +161,8 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | **L1** | Các ví hệ thống (`EXTERNAL`, `CUSTODY`, `INTEREST_POOL`) bị khóa bởi mọi giao dịch liên quan, nên các giao dịch đó được xử lý tuần tự. | Khi **đo được** độ trễ do xếp hàng ở các ví này. Hướng xử lý: chia nhỏ ví hệ thống, hoặc không lưu số dư ở ví hệ thống. |
 | **L2** | Không được nạp entity `Wallet` trước khi gọi `LedgerService.post` trong cùng một transaction, vì bản entity trong bộ nhớ đệm sẽ cũ so với dòng đã khóa. Chỉ lấy **id** ví trước khi gọi `post`. | Luôn áp dụng. |
 | **L3** | Chống mở trùng đồng thời dùng khóa advisory của PostgreSQL (`pg_advisory_xact_lock(hashtext(key))`), nên gắn chặt với Postgres. Hai key khác nhau có thể trùng mã băm 32 bit, khi đó chỉ bị xếp hàng nhầm với nhau chứ không sai kết quả. | Khi đổi sang database khác. |
+| **L4** | Tạo phiên thanh toán nạp tiền gọi cổng ngay trong transaction cơ sở dữ liệu. Với cổng giả thì không sao; với cổng thật nên tách thành hai bước (lưu đơn, rồi gọi cổng ngoài transaction) để không giữ kết nối DB trong lúc chờ mạng. | Khi chuyển sang cổng thật. |
+| **L5** | Cổng báo thành công nhưng số tiền khác đơn thì hệ thống chỉ từ chối và ghi log, chưa có quy trình xử lý thủ công hay cảnh báo. | Khi có kênh vận hành/cảnh báo. |
 
 ## K. Tính lãi hàng ngày
 
@@ -180,7 +185,7 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 | **R47** | Chỉ quyết toán gói đang `ACTIVE` và đã đến hạn (`maturity_date <= hôm nay`). Gói đã quyết toán hoặc chưa đến hạn bị bỏ qua, nên chạy lặp hoặc chạy đồng thời đều không trả tiền hai lần. |
 | **R48** | Đổi tùy chọn đáo hạn (R16) chỉ được với gói `ACTIVE`, do chính chủ gói thực hiện, và chỉ **trước** ngày đáo hạn. Thao tác khóa dòng gói nên không đụng độ với job đáo hạn: tùy chọn nào được chốt trước thì được áp dụng, không bao giờ bị mất. |
 | **R49** | Job đáo hạn chạy mỗi ngày lúc 00:05 và có thể lặp nhiều lượt trong một lần chạy (tối đa 10), để xử lý cả những gói tái tục mà bản thân chúng cũng đã đến hạn do job lỡ nhiều kỳ (R19). Gói đã thử một lần trong lần chạy thì không thử lại, tránh vòng lặp vô hạn khi có gói lỗi. |
-| **R50** | Quy ước khóa để tránh deadlock: mọi thao tác ghi tiền khóa **dòng gói trước, rồi các ví theo id tăng dần**. |
+| **R50** | Quy ước khóa để tránh deadlock: mọi thao tác ghi tiền khóa **dòng gói (hoặc dòng giao dịch thanh toán) trước, rồi các ví theo id tăng dần**. |
 
 ---
 
