@@ -19,6 +19,26 @@ Tài liệu gốc của dự án. Mọi code và test phải tham chiếu theo m
 - [K. Tính lãi hàng ngày](#k-tính-lãi-hàng-ngày)
 - [L. Quyết toán khi đáo hạn](#l-quyết-toán-khi-đáo-hạn)
 
+
+## Tra cứu nhanh: mã quy tắc nằm ở mục nào
+
+Các quy tắc được đánh số theo thứ tự ra đời, nhưng nằm trong mục theo **chủ đề**, nên số thứ tự không chạy liên tục từ đầu đến cuối file.
+
+| Mã | Mục |
+|---|---|
+| R1–R3 | A. Tiền tệ và làm tròn |
+| R4–R6 | B. Sản phẩm và lãi suất |
+| R7–R11 | C. Cách tính lãi |
+| R12–R15 | D. Vòng đời gói |
+| R16–R21 | E. Đáo hạn và tái đầu tư |
+| R22–R26, R51–R53 | F. Rút trước hạn |
+| R27–R31, R54–R56 | G. Nạp và rút qua bên thứ ba |
+| R32–R35 | H. Sổ cái |
+| R36–R39 | I. Ràng buộc bổ sung từ thiết kế database |
+| L1–L5 | J. Giới hạn đã biết |
+| R40–R42 | K. Tính lãi hàng ngày |
+| R43–R50 | L. Quyết toán khi đáo hạn |
+
 ---
 
 ## A. Tiền tệ và làm tròn

@@ -11,3 +11,9 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+
+nvest:
+  payment:
+    provider: mock
+    mock:
+      secret: dev-mock-secret-change-me

@@ -34,15 +34,22 @@ public class WalletService {
         return new WalletBalance(wallet.getAvailableBalance(), wallet.getHeldBalance());
     }
 
-    /** Tiền từ bên ngoài vào ví user. */
+    /** Tiền từ bên ngoài vào ví user, kèm tham chiếu về nghiệp vụ gốc (ví dụ giao dịch thanh toán). */
     @Transactional
-    public LedgerTransaction deposit(long userId, long amount, String idempotencyKey) {
+    public LedgerTransaction deposit(long userId, long amount, String idempotencyKey,
+                                     String referenceType, Long referenceId) {
         requirePositive(amount);
         long userWalletId = userWalletId(userId);
         long externalId = systemWalletId(WalletType.PLATFORM_EXTERNAL);
-        return ledgerService.post(LedgerTxType.DEPOSIT, idempotencyKey, "DEPOSIT", null, "Deposit",
+        return ledgerService.post(LedgerTxType.DEPOSIT, idempotencyKey, referenceType, referenceId, "Deposit",
                 List.of(new LedgerLine(externalId, BalanceType.AVAILABLE, -amount),
                         new LedgerLine(userWalletId, BalanceType.AVAILABLE, amount)));
+    }
+
+    /** Giữ nguyên chữ ký cũ cho code và test hiện có. */
+    @Transactional
+    public LedgerTransaction deposit(long userId, long amount, String idempotencyKey) {
+        return deposit(userId, amount, idempotencyKey, "DEPOSIT", null);
     }
 
     /** Rút bước 1: chuyển tiền từ AVAILABLE sang HELD (R29). */
