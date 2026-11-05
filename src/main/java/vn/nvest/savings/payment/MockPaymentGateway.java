@@ -140,6 +140,11 @@ public class MockPaymentGateway implements PaymentGateway {
         return new PayoutResult(status, ref, message);
     }
 
+    /** Làm như cổng không có dấu vết gì về đơn này. */
+    public void forget(String orderCode) {
+        orders.remove(orderCode);
+    }
+
     private String nextRef() {
         return "MOCK-" + sequence.incrementAndGet();
     }

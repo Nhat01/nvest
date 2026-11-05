@@ -32,10 +32,10 @@ Các quy tắc được đánh số theo thứ tự ra đời, nhưng nằm tron
 | R12–R15 | D. Vòng đời gói |
 | R16–R21 | E. Đáo hạn và tái đầu tư |
 | R22–R26, R51–R53 | F. Rút trước hạn |
-| R27–R31, R54–R56 | G. Nạp và rút qua bên thứ ba |
+| R27–R31, R54–R60 | G. Nạp và rút qua bên thứ ba |
 | R32–R35 | H. Sổ cái |
 | R36–R39 | I. Ràng buộc bổ sung từ thiết kế database |
-| L1–L5 | J. Giới hạn đã biết |
+| L1–L6 | J. Giới hạn đã biết |
 | R40–R42 | K. Tính lãi hàng ngày |
 | R43–R50 | L. Quyết toán khi đáo hạn |
 
@@ -151,6 +151,10 @@ ACTIVE ──► MATURED ──► CLOSED     (nhận gốc + lãi về ví)
 | **R54** | Mỗi yêu cầu tạo giao dịch nạp/rút có `idempotency_key` do client gửi (tối đa 80 ký tự). Gửi lại cùng key và cùng nội dung thì trả giao dịch cũ; cùng key khác nội dung thì bị từ chối. Nhiều request cùng key đến đồng thời được xếp hàng. |
 | **R55** | Webhook sai chữ ký (hoặc thiếu chữ ký) bị từ chối, không đổi gì. Cổng là nguồn sự thật: webhook `SUCCEEDED` hợp lệ đến sau khi giao dịch nạp đã bị đánh dấu `FAILED` (thành công muộn) vẫn được cộng tiền; webhook `FAILED` đến sau khi đã `SUCCEEDED` bị bỏ qua. |
 | **R56** | Số tiền trong webhook khác số tiền của đơn thì từ chối (không cộng tiền), giao dịch giữ nguyên trạng thái để đối soát. |
+| **R57** | Mỗi lệnh rút tối thiểu 10.000đ, tối đa 100.000.000đ, và không vượt số dư khả dụng (R29). |
+| **R58** | Gọi cổng chi tiền diễn ra **ngoài mọi transaction** cơ sở dữ liệu. Bước 1 (tạo lệnh và giữ tiền) và bước 2 (áp kết quả) là hai transaction riêng, để timeout hay lỗi mạng không làm mất lệnh giữ tiền. Nếu bước 2 lỗi, lệnh vẫn `PENDING` và tiền vẫn bị giữ, job đối soát xử lý sau. |
+| **R59** | Chỉ trả lại tiền (release) khi cổng báo thất bại **rõ ràng**. Mọi lỗi khác khi gọi cổng (timeout, mất kết nối, ngoại lệ không rõ) đều đưa lệnh sang `UNKNOWN` và giữ nguyên tiền (R30). Chỉ xác nhận (confirm) khi cổng báo thành công và số tiền khớp. |
+| **R60** | Job đối soát chạy mỗi 5 phút: hỏi lại cổng các lệnh nạp `PENDING` quá 30 phút (R31) và các lệnh rút `PENDING`/`UNKNOWN` quá 5 phút. Với lệnh rút, cổng báo không có dấu vết (`NOT_FOUND`) chỉ được coi là thất bại khi lệnh đã quá 2 giờ; trước đó giữ nguyên `UNKNOWN`. |
 
 ## H. Sổ cái
 
@@ -179,10 +183,11 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | Mã | Giới hạn | Khi nào cần xử lý |
 |---|---|---|
 | **L1** | Các ví hệ thống (`EXTERNAL`, `CUSTODY`, `INTEREST_POOL`) bị khóa bởi mọi giao dịch liên quan, nên các giao dịch đó được xử lý tuần tự. | Khi **đo được** độ trễ do xếp hàng ở các ví này. Hướng xử lý: chia nhỏ ví hệ thống, hoặc không lưu số dư ở ví hệ thống. |
-| **L2** | Không được nạp entity `Wallet` trước khi gọi `LedgerService.post` trong cùng một transaction, vì bản entity trong bộ nhớ đệm sẽ cũ so với dòng đã khóa. Chỉ lấy **id** ví trước khi gọi `post`. | Luôn áp dụng. |
+| **L2** | Không được nạp entity `Wallet` trước khi gọi `LedgerService.post` trong cùng một transaction, vì bản entity trong bộ nhớ đệm sẽ cũ so với dòng đã khóa. Chỉ lấy **id** ví trước khi gọi `post`. Lưu ý `WalletService.getBalance` **có** nạp entity: không gọi nó bên trong transaction sẽ ghi tiền; chỉ cần kiểm tra ví tồn tại thì dùng `WalletService.requireWallet`. | Luôn áp dụng. |
 | **L3** | Chống mở trùng đồng thời dùng khóa advisory của PostgreSQL (`pg_advisory_xact_lock(hashtext(key))`), nên gắn chặt với Postgres. Hai key khác nhau có thể trùng mã băm 32 bit, khi đó chỉ bị xếp hàng nhầm với nhau chứ không sai kết quả. | Khi đổi sang database khác. |
 | **L4** | Tạo phiên thanh toán nạp tiền gọi cổng ngay trong transaction cơ sở dữ liệu. Với cổng giả thì không sao; với cổng thật nên tách thành hai bước (lưu đơn, rồi gọi cổng ngoài transaction) để không giữ kết nối DB trong lúc chờ mạng. | Khi chuyển sang cổng thật. |
 | **L5** | Cổng báo thành công nhưng số tiền khác đơn thì hệ thống chỉ từ chối và ghi log, chưa có quy trình xử lý thủ công hay cảnh báo. | Khi có kênh vận hành/cảnh báo. |
+| **L6** | Lệnh rút `UNKNOWN` mà cổng báo không có dấu vết sau 2 giờ bị tự động trả tiền về ví. Nếu cổng thật xử lý lệnh đó rất muộn (hiếm gặp), user có thể nhận tiền hai lần. | Khi dùng cổng thật: thêm quy trình duyệt thủ công và cảnh báo. |
 
 ## K. Tính lãi hàng ngày
 

@@ -68,7 +68,7 @@ public class DepositService {
             return new DepositSession(payment, payment.getCheckoutUrl());
         }
 
-        walletService.getBalance(userId);   // ném WalletNotFoundException nếu user chưa có ví
+        walletService.requireWallet(userId);   // chỉ kiểm tra bằng id, không nạp entity ví (L2)
 
         String orderCode = PaymentTransaction.newOrderCode("DEP-");
         PaymentTransaction payment = paymentRepository.save(PaymentTransaction.newDeposit(

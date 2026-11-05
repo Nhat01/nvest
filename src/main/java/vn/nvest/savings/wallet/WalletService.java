@@ -52,35 +52,56 @@ public class WalletService {
         return deposit(userId, amount, idempotencyKey, "DEPOSIT", null);
     }
 
-    /** Rút bước 1: chuyển tiền từ AVAILABLE sang HELD (R29). */
+    /** Rút bước 1: chuyển tiền từ AVAILABLE sang HELD (R29), kèm tham chiếu về lệnh rút. */
     @Transactional
-    public LedgerTransaction holdForWithdrawal(long userId, long amount, String idempotencyKey) {
+    public LedgerTransaction holdForWithdrawal(long userId, long amount, String idempotencyKey,
+                                               String referenceType, Long referenceId) {
         requirePositive(amount);
         long walletId = userWalletId(userId);
-        return ledgerService.post(LedgerTxType.WITHDRAW_HOLD, idempotencyKey, "WITHDRAWAL", null, "Hold for withdrawal",
+        return ledgerService.post(LedgerTxType.WITHDRAW_HOLD, idempotencyKey, referenceType, referenceId,
+                "Hold for withdrawal",
                 List.of(new LedgerLine(walletId, BalanceType.AVAILABLE, -amount),
                         new LedgerLine(walletId, BalanceType.HELD, amount)));
     }
 
+    @Transactional
+    public LedgerTransaction holdForWithdrawal(long userId, long amount, String idempotencyKey) {
+        return holdForWithdrawal(userId, amount, idempotencyKey, "WITHDRAWAL", null);
+    }
+
     /** Rút thất bại rõ ràng: trả tiền từ HELD về AVAILABLE. */
     @Transactional
-    public LedgerTransaction releaseHold(long userId, long amount, String idempotencyKey) {
+    public LedgerTransaction releaseHold(long userId, long amount, String idempotencyKey,
+                                         String referenceType, Long referenceId) {
         requirePositive(amount);
         long walletId = userWalletId(userId);
-        return ledgerService.post(LedgerTxType.WITHDRAW_RELEASE, idempotencyKey, "WITHDRAWAL", null, "Release hold",
+        return ledgerService.post(LedgerTxType.WITHDRAW_RELEASE, idempotencyKey, referenceType, referenceId,
+                "Release hold",
                 List.of(new LedgerLine(walletId, BalanceType.HELD, -amount),
                         new LedgerLine(walletId, BalanceType.AVAILABLE, amount)));
     }
 
+    @Transactional
+    public LedgerTransaction releaseHold(long userId, long amount, String idempotencyKey) {
+        return releaseHold(userId, amount, idempotencyKey, "WITHDRAWAL", null);
+    }
+
     /** Rút thành công: tiền đang HELD chuyển hẳn ra bên ngoài. */
     @Transactional
-    public LedgerTransaction confirmWithdrawal(long userId, long amount, String idempotencyKey) {
+    public LedgerTransaction confirmWithdrawal(long userId, long amount, String idempotencyKey,
+                                               String referenceType, Long referenceId) {
         requirePositive(amount);
         long userWalletId = userWalletId(userId);
         long externalId = systemWalletId(WalletType.PLATFORM_EXTERNAL);
-        return ledgerService.post(LedgerTxType.WITHDRAW_CONFIRM, idempotencyKey, "WITHDRAWAL", null, "Confirm withdrawal",
+        return ledgerService.post(LedgerTxType.WITHDRAW_CONFIRM, idempotencyKey, referenceType, referenceId,
+                "Confirm withdrawal",
                 List.of(new LedgerLine(userWalletId, BalanceType.HELD, -amount),
                         new LedgerLine(externalId, BalanceType.AVAILABLE, amount)));
+    }
+
+    @Transactional
+    public LedgerTransaction confirmWithdrawal(long userId, long amount, String idempotencyKey) {
+        return confirmWithdrawal(userId, amount, idempotencyKey, "WITHDRAWAL", null);
     }
 
     /** Chuyển gốc từ ví user sang ví giữ gốc (custody) khi mở gói tiết kiệm (R13). */
@@ -151,6 +172,12 @@ public class WalletService {
     private long systemWalletId(WalletType type) {
         return walletRepository.findIdByWalletType(type)
                 .orElseThrow(() -> new WalletNotFoundException("System wallet missing: " + type));
+    }
+
+    /** Báo lỗi nếu user chưa có ví, mà KHÔNG nạp entity Wallet vào bộ nhớ đệm (quy tắc L2). */
+    @Transactional(readOnly = true)
+    public void requireWallet(long userId) {
+        userWalletId(userId);
     }
 
     private static void requirePositive(long amount) {

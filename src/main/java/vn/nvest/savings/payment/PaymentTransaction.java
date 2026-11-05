@@ -90,6 +90,35 @@ public class PaymentTransaction {
         return payment;
     }
 
+    public static PaymentTransaction newWithdrawal(long userId, long amount, String orderCode,
+                                                   String provider, String idempotencyKey, Instant now) {
+        PaymentTransaction payment = new PaymentTransaction();
+        payment.userId = userId;
+        payment.direction = PaymentDirection.WITHDRAW;
+        payment.amount = amount;
+        payment.status = PaymentStatus.PENDING;
+        payment.orderCode = orderCode;
+        payment.provider = provider;
+        payment.idempotencyKey = idempotencyKey;
+        payment.createdAt = now;
+        payment.updatedAt = now;
+        return payment;
+    }
+
+    /** R30: kết quả mơ hồ. Tiền vẫn bị giữ, chờ job đối soát. */
+    public void markUnknown(String reason, Instant now) {
+        if (status == PaymentStatus.UNKNOWN) {
+            return;
+        }
+        if (status != PaymentStatus.PENDING) {
+            throw new InvalidStateTransitionException(
+                    "Payment " + orderCode + " is " + status + " and cannot become UNKNOWN");
+        }
+        this.status = PaymentStatus.UNKNOWN;
+        this.failureReason = reason;
+        this.updatedAt = now;
+    }
+
     public void attachCheckout(String providerRef, String checkoutUrl, Instant now) {
         this.providerRef = providerRef;
         this.checkoutUrl = checkoutUrl;
