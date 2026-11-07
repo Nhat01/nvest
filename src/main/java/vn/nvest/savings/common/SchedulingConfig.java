@@ -7,6 +7,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /** Bật @Scheduled. Tắt được bằng nvest.scheduling.enabled=false (dùng trong test). */
 @Configuration
 @EnableScheduling
-@ConditionalOnProperty(name = "nvest.scheduling.enable", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "nvest.scheduling.enabled", havingValue = "true", matchIfMissing = true)
 public class SchedulingConfig {
 }

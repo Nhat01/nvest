@@ -17,3 +17,7 @@ nvest:
     provider: mock
     mock:
       secret: dev-mock-secret-change-me
+  security:
+    jwt:
+      secret: ${NVEST_JWT_SECRET:dev-only-secret-change-me-in-production-32b}
+      ttl: PT1H
