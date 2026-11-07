@@ -6,6 +6,8 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -36,4 +38,8 @@ public interface PaymentTransactionRepository extends JpaRepository<PaymentTrans
     List<Long> findOpenIdsCreatedBefore(@Param("direction") PaymentDirection direction,
                                         @Param("statuses") Collection<PaymentStatus> statuses,
                                         @Param("cutoff") Instant cutoff);
+
+    List<PaymentTransaction> findByUserIdOrderByIdDesc(Long userId, Pageable pageable);
+
+    Optional<PaymentTransaction> findByIdAndUserId(Long id, Long userId);
 }

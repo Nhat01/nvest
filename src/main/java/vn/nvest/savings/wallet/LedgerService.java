@@ -1,5 +1,6 @@
 package vn.nvest.savings.wallet;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.nvest.savings.common.IdempotencyConflictException;
@@ -88,5 +89,12 @@ public class LedgerService {
         if (sum != 0) {
             throw new IllegalArgumentException("Ledger lines must sum to 0 (R37), got " + sum);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<StatementLine> getStatement(long walletId, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);   // R68: tối đa 100 dòng mỗi trang
+        return entryRepository.findStatement(walletId, PageRequest.of(safePage, safeSize));
     }
 }

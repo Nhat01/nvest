@@ -18,6 +18,9 @@ Tài liệu gốc của dự án. Mọi code và test phải tham chiếu theo m
 - [J. Giới hạn đã biết](#j-giới-hạn-đã-biết)
 - [K. Tính lãi hàng ngày](#k-tính-lãi-hàng-ngày)
 - [L. Quyết toán khi đáo hạn](#l-quyết-toán-khi-đáo-hạn)
+- [M. Xác thực và phân quyền](#m-xác-thực-và-phân-quyền)
+- [N. Quy ước API](#n-quy-ước-api)
+- [O. Quản trị và môi trường dev](#o-quản-trị-và-môi-trường-dev)
 
 
 ## Tra cứu nhanh: mã quy tắc nằm ở mục nào
@@ -35,9 +38,12 @@ Các quy tắc được đánh số theo thứ tự ra đời, nhưng nằm tron
 | R27–R31, R54–R60 | G. Nạp và rút qua bên thứ ba |
 | R32–R35 | H. Sổ cái |
 | R36–R39 | I. Ràng buộc bổ sung từ thiết kế database |
-| L1–L6 | J. Giới hạn đã biết |
+| L1–L9 | J. Giới hạn đã biết |
 | R40–R42 | K. Tính lãi hàng ngày |
 | R43–R50 | L. Quyết toán khi đáo hạn |
+| R61–R64 | M. Xác thực và phân quyền |
+| R65–R68 | N. Quy ước API |
+| R69–R71 | O. Quản trị và môi trường dev |
 
 ---
 
@@ -188,6 +194,9 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | **L4** | Tạo phiên thanh toán nạp tiền gọi cổng ngay trong transaction cơ sở dữ liệu. Với cổng giả thì không sao; với cổng thật nên tách thành hai bước (lưu đơn, rồi gọi cổng ngoài transaction) để không giữ kết nối DB trong lúc chờ mạng. | Khi chuyển sang cổng thật. |
 | **L5** | Cổng báo thành công nhưng số tiền khác đơn thì hệ thống chỉ từ chối và ghi log, chưa có quy trình xử lý thủ công hay cảnh báo. | Khi có kênh vận hành/cảnh báo. |
 | **L6** | Lệnh rút `UNKNOWN` mà cổng báo không có dấu vết sau 2 giờ bị tự động trả tiền về ví. Nếu cổng thật xử lý lệnh đó rất muộn (hiếm gặp), user có thể nhận tiền hai lần. | Khi dùng cổng thật: thêm quy trình duyệt thủ công và cảnh báo. |
+| **L7** | Chưa có thu hồi token (token đã cấp vẫn dùng được đến khi hết hạn, kể cả sau khi khóa tài khoản), chưa chống dò mật khẩu (giới hạn số lần đăng nhập), chưa có refresh token. | Trước khi cho người thật dùng: giới hạn tần suất đăng nhập, rút ngắn thời hạn token và thêm refresh token. |
+| **L8** | Sao kê và danh sách giao dịch chỉ phân trang, chưa lọc theo ngày hay loại. Danh sách gói tiết kiệm không kèm lãi tạm tính (chỉ có ở màn hình chi tiết) để tránh truy vấn lặp theo từng gói. | Khi có giao diện cần lọc hoặc hiển thị lãi tạm tính hàng loạt. |
+| **L9** | Chưa có nhật ký kiểm toán cho thao tác của admin (ai đổi gì, khi nào, giá trị cũ và mới). Hai admin sửa cùng một sản phẩm cùng lúc thì bản ghi sau thắng. | Khi có nhiều admin: thêm bảng nhật ký và cột phiên bản cho sản phẩm. |
 
 ## K. Tính lãi hàng ngày
 
@@ -211,6 +220,32 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 | **R48** | Đổi tùy chọn đáo hạn (R16) chỉ được với gói `ACTIVE`, do chính chủ gói thực hiện, và chỉ **trước** ngày đáo hạn. Thao tác khóa dòng gói nên không đụng độ với job đáo hạn: tùy chọn nào được chốt trước thì được áp dụng, không bao giờ bị mất. |
 | **R49** | Job đáo hạn chạy mỗi ngày lúc 00:05 và có thể lặp nhiều lượt trong một lần chạy (tối đa 10), để xử lý cả những gói tái tục mà bản thân chúng cũng đã đến hạn do job lỡ nhiều kỳ (R19). Gói đã thử một lần trong lần chạy thì không thử lại, tránh vòng lặp vô hạn khi có gói lỗi. |
 | **R50** | Quy ước khóa để tránh deadlock: mọi thao tác ghi tiền khóa **dòng gói (hoặc dòng giao dịch thanh toán) trước, rồi các ví theo id tăng dần**. |
+
+## M. Xác thực và phân quyền
+
+| Mã | Quy tắc |
+|---|---|
+| **R61** | Đăng ký: email duy nhất (không phân biệt hoa thường, lưu dạng chữ thường), mật khẩu 8 đến 72 ký tự, lưu dạng băm BCrypt (không bao giờ lưu hay trả mật khẩu gốc). Mỗi user có ví ngay khi đăng ký, trong cùng một transaction. |
+| **R62** | Đăng nhập trả JWT ký HS256, hết hạn sau 1 giờ (cấu hình được), chứa id user (`sub`), email và vai trò (`role`). |
+| **R63** | Sai email, sai mật khẩu hoặc tài khoản bị khóa đều trả **cùng một lỗi 401 chung** và tốn thời gian xử lý tương đương, để không lộ email nào đã đăng ký. |
+| **R64** | Mọi API ngoài `/api/auth/**` đều yêu cầu token hợp lệ; `/webhooks/**` xác thực bằng chữ ký chứ không bằng token; chỉ `/actuator/health` và tài liệu API mở công khai. User chỉ thao tác trên dữ liệu của chính mình: id lấy từ token, **không bao giờ** từ nội dung request. |
+
+## N. Quy ước API
+
+| Mã | Quy tắc |
+|---|---|
+| **R65** | Các API tạo giao dịch tiền (nạp, rút, mở gói) bắt buộc có header `Idempotency-Key` (tối đa 80 ký tự). Gửi lại cùng key và cùng nội dung thì nhận lại kết quả cũ (R38, R54). |
+| **R66** | Mã trạng thái HTTP: `400` dữ liệu sai; `401` chưa xác thực; `403` không đủ quyền; `404` không thấy hoặc không thuộc về user; `409` xung đột trạng thái hoặc khóa idempotency; `422` vi phạm quy tắc nghiệp vụ (không đủ tiền, sản phẩm ngừng bán); `202` lệnh rút chưa có kết quả rõ ràng. Lỗi trả theo chuẩn RFC 7807 (`application/problem+json`). |
+| **R67** | Số tiền là VND nguyên (đơn vị đồng). Lãi suất trong API tính theo **phần trăm/năm** (`6.00` nghĩa là 6%), còn trong database và công thức tính là số thập phân (`0.0600`). |
+| **R68** | Tài nguyên của người khác trả `404` chứ không phải `403`, để không lộ sự tồn tại của nó. Danh sách phân trang theo `page` (từ 0) và `size` (tối đa 100). |
+
+## O. Quản trị và môi trường dev
+
+| Mã | Quy tắc |
+|---|---|
+| **R69** | Chỉ vai trò `ADMIN` được quản lý sản phẩm: tạo (mã gồm chữ in hoa, số, gạch dưới, 3 đến 30 ký tự), đổi lãi suất (0% đến 20%/năm, R36), ngừng bán. Đổi lãi suất **không** ảnh hưởng gói đã mở (R5); chỉ áp dụng cho gói mở mới và các kỳ tái tục sau đó (R17). Ngừng bán không ảnh hưởng gói đang chạy, nhưng chặn mở mới và chuyển các gói tái tục về trả hết (R18). |
+| **R70** | Quyền `ADMIN` không bao giờ được cấp qua API hay cấu hình tự động. Người vận hành cấp thủ công trong database cho một tài khoản đã đăng ký, rồi tài khoản đó đăng nhập lại để nhận token mới (vai trò nằm trong token). |
+| **R71** | Endpoint nạp tiền thử `/api/dev/credit` chỉ tồn tại khi chạy với profile `dev`, tối đa 100.000.000đ mỗi lần, và không bao giờ được bật ở môi trường thật. Tiền nạp thử vẫn đi qua sổ cái hai chiều như một lần nạp bình thường (R37). |
 
 ---
 

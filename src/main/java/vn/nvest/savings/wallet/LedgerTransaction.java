@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Immutable;
 
+import java.time.Instant;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -31,6 +33,9 @@ public class LedgerTransaction {
 
     @Column(name = "description")
     private String description;
+
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private Instant createdAt;
 
     public LedgerTransaction(LedgerTxType txType, String idempotencyKey,
                              String referenceType, Long referenceId, String description) {

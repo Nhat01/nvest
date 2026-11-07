@@ -8,6 +8,8 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+import vn.nvest.savings.user.Role;
+import vn.nvest.savings.user.TokenService;
 import vn.nvest.savings.wallet.WalletService;
 
 import java.util.TimeZone;
@@ -16,6 +18,19 @@ import java.util.UUID;
 @SpringBootTest(properties = "nvest.scheduling.enabled=false")
 @AutoConfigureMockMvc
 public abstract class AbstractPostgresIntegrationTest {
+
+    @Autowired
+    protected TokenService tokenService;
+
+    /** Giá trị header Authorization cho một user đã có trong DB, token ký bằng khóa thật của ứng dụng. */
+    protected String bearer(long userId) {
+        return bearer(userId, Role.USER);
+    }
+
+    protected String bearer(long userId, Role role) {
+        String email = jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, userId);
+        return "Bearer " + tokenService.issue(userId, email, role).value();
+    }
 
     static {
         // Test không đi qua hàm main, nên phải tự sửa lỗi múi giờ "Asia/Saigon" (xem Bước 1)

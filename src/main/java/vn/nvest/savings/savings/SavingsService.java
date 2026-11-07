@@ -102,4 +102,17 @@ public class SavingsService {
     public List<SavingsAccount> listByUser(long userId) {
         return accountRepository.findByUserIdOrderByIdDesc(userId);
     }
+
+    @Transactional(readOnly = true)
+    public List<SavingsProduct> listOnSaleProducts() {
+        return productRepository.findByStatusOrderByTermDays(ProductStatus.ON_SALE);
+    }
+
+    /** Gói của người khác coi như không tồn tại (R68). */
+    @Transactional(readOnly = true)
+    public SavingsAccount getForUser(long userId, long accountId) {
+        return accountRepository.findById(accountId)
+                .filter(account -> account.getUserId().equals(userId))
+                .orElseThrow(() -> new AccountNotFoundException("Account not found: " + accountId));
+    }
 }

@@ -30,8 +30,15 @@ public class WalletService {
 
     @Transactional(readOnly = true)
     public WalletBalance getBalance(long userId) {
-        Wallet wallet = userWallet(userId);
-        return new WalletBalance(wallet.getAvailableBalance(), wallet.getHeldBalance());
+        WalletRepository.BalanceView view = walletRepository.findBalanceByUserId(userId)
+                .orElseThrow(() -> new WalletNotFoundException("No wallet for user " + userId));
+        return new WalletBalance(view.getAvailableBalance(), view.getHeldBalance());
+    }
+
+    /** Sao kê: các dòng sổ cái của ví user, mới nhất trước. */
+    @Transactional(readOnly = true)
+    public List<StatementLine> getStatement(long userId, int page, int size) {
+        return ledgerService.getStatement(userWalletId(userId), page, size);
     }
 
     /** Tiền từ bên ngoài vào ví user, kèm tham chiếu về nghiệp vụ gốc (ví dụ giao dịch thanh toán). */

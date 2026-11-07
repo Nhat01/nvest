@@ -22,4 +22,13 @@ public interface WalletRepository extends JpaRepository<Wallet, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("Select w from Wallet w where w.id = :id")
     Optional<Wallet> findByIdForUpdate(@Param("id") Long id);
+
+    /** Số dư dưới dạng projection: KHÔNG nạp entity Wallet vào bộ nhớ đệm (quy tắc L2). */
+    interface BalanceView {
+        long getAvailableBalance();
+
+        long getHeldBalance();
+    }
+
+    Optional<BalanceView> findBalanceByUserId(Long userId);
 }
