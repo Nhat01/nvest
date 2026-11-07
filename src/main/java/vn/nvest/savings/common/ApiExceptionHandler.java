@@ -74,7 +74,7 @@ public class ApiExceptionHandler {
     // ---- 409: xung đột ----
 
     @ExceptionHandler({EmailAlreadyUsedException.class, IdempotencyConflictException.class,
-            InvalidStateTransitionException.class})
+            InvalidStateTransitionException.class, ProductAlreadyExistsException.class})
     public ProblemDetail onConflict(RuntimeException e) {
         return problem(HttpStatus.CONFLICT, "Conflict", e.getMessage());
     }

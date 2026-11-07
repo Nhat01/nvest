@@ -4,8 +4,10 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
 @Getter
@@ -39,6 +41,12 @@ public class SavingsProduct {
     @Column(name = "status", nullable = false)
     private ProductStatus status = ProductStatus.ON_SALE;
 
+    private static final BigDecimal MAX_ANNUAL_RATE = new BigDecimal("0.2000");   // R36
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
+
     public SavingsProduct(String code, String name, int termDays, BigDecimal annualRate,
                           long minAmount, long maxAmount) {
         this.code = code;
@@ -68,5 +76,13 @@ public class SavingsProduct {
     /** Ngừng bán sản phẩm (admin). */
     public void stopSale() {
         this.status = ProductStatus.STOPPED;
+    }
+
+    /** R36: lãi suất dạng thập phân trong khoảng 0 đến 0,2000. Không ảnh hưởng gói đã mở (R5). */
+    public void changeAnnualRate(BigDecimal newRate) {
+        if (newRate == null || newRate.signum() < 0 || newRate.compareTo(MAX_ANNUAL_RATE) > 0) {
+            throw new IllegalArgumentException("Annual rate must be between 0 and 0.2000 (R36)");
+        }
+        this.annualRate = newRate;
     }
 }
