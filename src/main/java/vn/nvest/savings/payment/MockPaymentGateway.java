@@ -3,6 +3,7 @@ package vn.nvest.savings.payment;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
@@ -13,14 +14,12 @@ import java.util.concurrent.atomic.AtomicLong;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import vn.nvest.savings.common.GatewayTimeoutException;
 
 /** Cổng thanh toán giả, chạy trong bộ nhớ. Bật bằng nvest.payment.provider=mock (mặc định). */
 @Component
-@ConditionalOnProperty(name = "nvest.payment.provider", havingValue = "mock", matchIfMissing = true)
-public class MockPaymentGateway implements PaymentGateway {
+public class MockPaymentGateway implements PayInGateway, PayoutGateway {
 
     public static final String PROVIDER = "MOCK";
     private static final String HMAC = "HmacSHA256";
@@ -51,10 +50,15 @@ public class MockPaymentGateway implements PaymentGateway {
     }
 
     @Override
-    public CheckoutSession createCheckout(String orderCode, long amount) {
+    public CheckoutSession createCheckout(String orderCode, long amount, Instant createdAt) {
         Order order = orders.computeIfAbsent(orderCode,
                 code -> new Order(amount, GatewayStatus.PENDING, nextRef()));
         return new CheckoutSession(order.providerRef(), "http://localhost:8080/mock-gateway/pay/" + orderCode);
+    }
+
+    @Override
+    public QueryResult queryStatus(String orderCode, Instant createdAt) {
+        return queryStatus(orderCode);
     }
 
     @Override

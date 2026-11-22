@@ -13,9 +13,9 @@ public class WithdrawalService {
     private static final Logger log = LoggerFactory.getLogger(WithdrawalService.class);
 
     private final WithdrawalRecorder recorder;
-    private final PaymentGateway gateway;
+    private final PayoutGateway gateway;
 
-    public WithdrawalService(WithdrawalRecorder recorder, PaymentGateway gateway) {
+    public WithdrawalService(WithdrawalRecorder recorder, PayoutGateway gateway) {
         this.recorder = recorder;
         this.gateway = gateway;
     }

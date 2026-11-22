@@ -29,18 +29,20 @@ public class ReconciliationService {
     }
 
     private final PaymentTransactionRepository paymentRepository;
-    private final PaymentGateway gateway;
+    private final PayInGateway payIn;
+    private final PayoutGateway payout;
     private final DepositService depositService;
     private final WithdrawalRecorder withdrawalRecorder;
     private final Clock clock;
 
     public ReconciliationService(PaymentTransactionRepository paymentRepository,
-                                 PaymentGateway gateway,
+                                 PayInGateway payIn, PayoutGateway payout,
                                  DepositService depositService,
                                  WithdrawalRecorder withdrawalRecorder,
                                  Clock clock) {
         this.paymentRepository = paymentRepository;
-        this.gateway = gateway;
+        this.payIn = payIn;
+        this.payout = payout;
         this.depositService = depositService;
         this.withdrawalRecorder = withdrawalRecorder;
         this.clock = clock;
@@ -53,7 +55,9 @@ public class ReconciliationService {
             return Outcome.ALREADY_SETTLED;
         }
 
-        QueryResult result = gateway.queryStatus(payment.getOrderCode());   // hỏi cổng, ngoài mọi transaction
+        QueryResult result = payment.getDirection() == PaymentDirection.DEPOSIT
+                ? payIn.queryStatus(payment.getOrderCode(), payment.getCreatedAt())   // hỏi cổng, ngoài mọi transaction
+                : payout.queryStatus(payment.getOrderCode());   // hỏi cổng, ngoài mọi transaction
         return payment.getDirection() == PaymentDirection.DEPOSIT
                 ? reconcileDeposit(payment, result)
                 : reconcileWithdrawal(payment, result);

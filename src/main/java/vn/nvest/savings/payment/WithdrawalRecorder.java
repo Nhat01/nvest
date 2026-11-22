@@ -21,12 +21,12 @@ public class WithdrawalRecorder {
     }
 
     private final PaymentTransactionRepository paymentRepository;
-    private final PaymentGateway gateway;
+    private final PayoutGateway gateway;
     private final WalletService walletService;
     private final Clock clock;
 
     public WithdrawalRecorder(PaymentTransactionRepository paymentRepository,
-                              PaymentGateway gateway,
+                              PayoutGateway gateway,
                               WalletService walletService,
                               Clock clock) {
         this.paymentRepository = paymentRepository;

@@ -24,13 +24,13 @@ public class DepositService {
     }
 
     private final PaymentTransactionRepository paymentRepository;
-    private final PaymentGateway gateway;
+    private final PayInGateway gateway;
     private final WalletService walletService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
 
     public DepositService(PaymentTransactionRepository paymentRepository,
-                          PaymentGateway gateway,
+                          PayInGateway gateway,
                           WalletService walletService,
                           ObjectMapper objectMapper,
                           Clock clock) {
@@ -73,7 +73,7 @@ public class DepositService {
         String orderCode = PaymentTransaction.newOrderCode("DEP-");
         PaymentTransaction payment = paymentRepository.save(PaymentTransaction.newDeposit(
                 userId, amount, orderCode, gateway.providerName(), idempotencyKey, clock.instant()));
-        CheckoutSession session = gateway.createCheckout(orderCode, amount);
+        CheckoutSession session = gateway.createCheckout(orderCode, amount, payment.getCreatedAt());
         payment.attachCheckout(session.providerRef(), session.checkoutUrl(), clock.instant());
         return new DepositSession(payment, session.checkoutUrl());
     }
