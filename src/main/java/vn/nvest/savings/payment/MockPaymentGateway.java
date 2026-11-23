@@ -8,9 +8,9 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,12 +36,17 @@ public class MockPaymentGateway implements PayInGateway, PayoutGateway {
     }
 
     private final byte[] secret;
+    private final String checkoutBaseUrl;
     private final Map<String, Order> orders = new ConcurrentHashMap<>();
     private final Queue<PayoutBehavior> scriptedPayouts = new ConcurrentLinkedQueue<>();
-    private final AtomicLong sequence = new AtomicLong();
 
-    public MockPaymentGateway(@Value("${nvest.payment.mock.secret:dev-mock-secret}") String secret) {
+    public MockPaymentGateway(@Value("${nvest.payment.mock.secret:dev-mock-secret}") String secret,
+                              @Value("${nvest.payment.mock.checkout-base-url:http://localhost:8080}")
+                              String checkoutBaseUrl) {
         this.secret = secret.getBytes(StandardCharsets.UTF_8);
+        this.checkoutBaseUrl = checkoutBaseUrl.endsWith("/")
+                ? checkoutBaseUrl.substring(0, checkoutBaseUrl.length() - 1)
+                : checkoutBaseUrl;
     }
 
     @Override
@@ -53,7 +58,7 @@ public class MockPaymentGateway implements PayInGateway, PayoutGateway {
     public CheckoutSession createCheckout(String orderCode, long amount, Instant createdAt) {
         Order order = orders.computeIfAbsent(orderCode,
                 code -> new Order(amount, GatewayStatus.PENDING, nextRef()));
-        return new CheckoutSession(order.providerRef(), "http://localhost:8080/mock-gateway/pay/" + orderCode);
+        return new CheckoutSession(order.providerRef(), checkoutBaseUrl + "/mock-gateway/pay/" + orderCode);
     }
 
     @Override
@@ -127,9 +132,17 @@ public class MockPaymentGateway implements PayInGateway, PayoutGateway {
     /** Dựng một webhook đúng định dạng, đã ký, như thể cổng gọi về. */
     public SignedWebhook webhookFor(String orderCode, GatewayStatus status, long amount) {
         Order order = orders.get(orderCode);
-        String providerRef = order != null ? order.providerRef() : "MOCK-UNKNOWN";
-        String payload = "{\"orderCode\":\"" + orderCode + "\",\"providerRef\":\"" + providerRef
-                + "\",\"status\":\"" + status + "\",\"amount\":" + amount + "}";
+        return webhookFor(orderCode, order != null ? order.providerRef() : "MOCK-UNKNOWN", status, amount);
+    }
+
+    /**
+     * Dựng webhook với providerRef do bên gọi cung cấp (thường đọc từ DB).
+     * Trang checkout giả dùng bản này để vẫn hoạt động sau restart, khi state trong bộ nhớ đã mất.
+     */
+    public SignedWebhook webhookFor(String orderCode, String providerRef, GatewayStatus status, long amount) {
+        String refJson = providerRef == null ? "null" : "\"" + providerRef + "\"";
+        String payload = "{\"orderCode\":\"" + orderCode + "\",\"providerRef\":" + refJson
+                + ",\"status\":\"" + status + "\",\"amount\":" + amount + "}";
         return new SignedWebhook(payload, sign(payload));
     }
 
@@ -149,7 +162,11 @@ public class MockPaymentGateway implements PayInGateway, PayoutGateway {
         orders.remove(orderCode);
     }
 
+    /**
+     * providerRef ngẫu nhiên thay vì đếm trong bộ nhớ: sau khi restart, bộ đếm cũ về 0 sẽ sinh lại
+     * MOCK-1 và đụng unique index (provider, provider_ref) của các giao dịch đã lưu trong DB.
+     */
     private String nextRef() {
-        return "MOCK-" + sequence.incrementAndGet();
+        return "MOCK-" + UUID.randomUUID().toString().replace("-", "").toUpperCase();
     }
 }

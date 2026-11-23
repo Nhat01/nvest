@@ -2,7 +2,9 @@ package vn.nvest.savings.payment;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import vn.nvest.savings.common.PayoutNotSupportedException;
 
 /**
  * Điều phối lệnh rút. CỐ Ý không có @Transactional: gọi cổng phải nằm giữa hai transaction (R58).
@@ -14,13 +16,28 @@ public class WithdrawalService {
 
     private final WithdrawalRecorder recorder;
     private final PayoutGateway gateway;
+    private final String provider;
 
-    public WithdrawalService(WithdrawalRecorder recorder, PayoutGateway gateway) {
+    public WithdrawalService(WithdrawalRecorder recorder, PayoutGateway gateway,
+                             @Value("${nvest.payment.provider:mock}") String provider) {
         this.recorder = recorder;
         this.gateway = gateway;
+        this.provider = provider;
     }
 
     public PaymentTransaction withdraw(long userId, long amount, String idempotencyKey) {
+        /*
+         * VNPAY chỉ có API thu tiền, không có API chi tiền. MockPaymentGateway vẫn là bean
+         * PayoutGateway duy nhất, nên nếu không chặn ở đây thì lệnh rút sẽ được "chi" bằng
+         * cổng giả và đánh dấu SUCCEEDED dù không có đồng nào rời khỏi hệ thống.
+         * Chặn TRƯỚC khi tạo lệnh/giữ tiền để không để lại transaction rác.
+         */
+        if (!"mock".equalsIgnoreCase(provider)) {
+            throw new PayoutNotSupportedException(
+                    "Withdrawals are not supported with payment provider '" + provider
+                            + "'. Only the mock provider can execute payouts.");
+        }
+
         // Transaction 1: tạo lệnh và giữ tiền, commit xong mới đi tiếp
         WithdrawalRecorder.Started started = recorder.start(userId, amount, idempotencyKey);
         PaymentTransaction payment = started.payment();

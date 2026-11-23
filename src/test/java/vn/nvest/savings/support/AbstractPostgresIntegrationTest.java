@@ -15,7 +15,11 @@ import vn.nvest.savings.wallet.WalletService;
 import java.util.TimeZone;
 import java.util.UUID;
 
-@SpringBootTest(properties = "nvest.scheduling.enabled=false")
+@SpringBootTest(properties = {
+        "nvest.scheduling.enabled=false",
+        // Test dùng khóa JWT mặc định; JwtSecretGuard chỉ cho phép khi bật rõ ràng.
+        "nvest.security.jwt.allow-dev-secret=true"
+})
 @AutoConfigureMockMvc
 public abstract class AbstractPostgresIntegrationTest {
 

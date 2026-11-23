@@ -92,4 +92,11 @@ public class ApiExceptionHandler {
     public ProblemDetail onProductNotAvailable(ProductNotAvailableException e) {
         return problem(HttpStatus.UNPROCESSABLE_ENTITY, "Product not available", e.getMessage());
     }
+
+    // ---- 501: cổng hiện tại không hỗ trợ thao tác này ----
+
+    @ExceptionHandler(PayoutNotSupportedException.class)
+    public ProblemDetail onPayoutNotSupported(PayoutNotSupportedException e) {
+        return problem(HttpStatus.NOT_IMPLEMENTED, "Withdrawals not supported", e.getMessage());
+    }
 }
