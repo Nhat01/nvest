@@ -6,6 +6,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.nvest.savings.common.IdempotencyConflictException;
 import vn.nvest.savings.common.PaymentNotFoundException;
+import vn.nvest.savings.outbox.EventTypes;
+import vn.nvest.savings.outbox.OutboxService;
+import vn.nvest.savings.outbox.Topics;
+import vn.nvest.savings.outbox.WithdrawalSettledEvent;
 import vn.nvest.savings.wallet.WalletService;
 
 /** Các bước CÓ transaction của lệnh rút. Việc gọi cổng nằm ở WithdrawalService, ngoài mọi transaction (R58). */
@@ -24,15 +28,17 @@ public class WithdrawalRecorder {
     private final PayoutGateway gateway;
     private final WalletService walletService;
     private final Clock clock;
+    private final OutboxService outboxService;
 
     public WithdrawalRecorder(PaymentTransactionRepository paymentRepository,
                               PayoutGateway gateway,
                               WalletService walletService,
-                              Clock clock) {
+                              Clock clock, OutboxService outboxService) {
         this.paymentRepository = paymentRepository;
         this.gateway = gateway;
         this.walletService = walletService;
         this.clock = clock;
+        this.outboxService = outboxService;
     }
 
     /**
@@ -97,6 +103,10 @@ public class WithdrawalRecorder {
         } else {
             throw new IllegalArgumentException("Only SUCCEEDED or FAILED can settle a withdrawal, got " + status);
         }
+        outboxService.record(Topics.PAYMENT_EVENTS, EventTypes.WITHDRAWAL_SETTLED,
+                "withdrawal-settled:" + payment.getOrderCode(), "user:" + payment.getUserId(),
+                new WithdrawalSettledEvent(payment.getId(), payment.getUserId(), payment.getAmount(),
+                        payment.getOrderCode(), payment.getStatus().name()));
         return payment;
     }
 

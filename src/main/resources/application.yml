@@ -11,6 +11,15 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        max.block.ms: 5000
 
 # Tài liệu OpenAPI/Swagger. Đặt NVEST_OPENAPI_ENABLED=false khi deploy thật
 # để không công khai danh sách endpoint.
@@ -21,6 +30,13 @@ springdoc:
     enabled: ${NVEST_OPENAPI_ENABLED:true}
 
 nvest:
+  kafka:
+    enabled: ${NVEST_KAFKA_ENABLED:true}
+  outbox:
+    relay:
+      batch-size: 100
+      delay: PT1S
+      send-timeout-ms: 5000
   payment:
     provider: ${NVEST_PAYMENT_PROVIDER:mock}
     mock:

@@ -10,6 +10,10 @@ import vn.nvest.savings.common.IdempotencyConflictException;
 import vn.nvest.savings.common.InvalidSignatureException;
 import vn.nvest.savings.common.PaymentAmountMismatchException;
 import vn.nvest.savings.common.PaymentNotFoundException;
+import vn.nvest.savings.outbox.DepositSucceededEvent;
+import vn.nvest.savings.outbox.EventTypes;
+import vn.nvest.savings.outbox.OutboxService;
+import vn.nvest.savings.outbox.Topics;
 import vn.nvest.savings.wallet.WalletService;
 
 @Service
@@ -28,17 +32,19 @@ public class DepositService {
     private final WalletService walletService;
     private final ObjectMapper objectMapper;
     private final Clock clock;
+    private final OutboxService outboxService;
 
     public DepositService(PaymentTransactionRepository paymentRepository,
                           PayInGateway gateway,
                           WalletService walletService,
                           ObjectMapper objectMapper,
-                          Clock clock) {
+                          Clock clock, OutboxService outboxService) {
         this.paymentRepository = paymentRepository;
         this.gateway = gateway;
         this.walletService = walletService;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.outboxService = outboxService;
     }
 
     /**
@@ -116,6 +122,9 @@ public class DepositService {
             walletService.deposit(payment.getUserId(), payment.getAmount(),
                     "deposit:" + orderCode, "PAYMENT", payment.getId());
             payment.markSucceeded(providerRef, rawPayload, clock.instant());
+            outboxService.record(Topics.PAYMENT_EVENTS, EventTypes.DEPOSIT_SUCCEEDED,
+                    "deposit-succeeded:" + orderCode, "user:" + payment.getUserId(),
+                    new DepositSucceededEvent(payment.getId(), payment.getUserId(), payment.getAmount(), orderCode));
         } else if (status == GatewayStatus.FAILED) {
             if (payment.getStatus() == PaymentStatus.PENDING || payment.getStatus() == PaymentStatus.UNKNOWN) {
                 payment.markFailed("GATEWAY_REPORTED_FAILURE", rawPayload, clock.instant());

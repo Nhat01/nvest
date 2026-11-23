@@ -5,6 +5,10 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.nvest.savings.interest.InterestCalculator;
+import vn.nvest.savings.outbox.EventTypes;
+import vn.nvest.savings.outbox.OutboxService;
+import vn.nvest.savings.outbox.SavingsMaturedEvent;
+import vn.nvest.savings.outbox.Topics;
 import vn.nvest.savings.wallet.LedgerTransaction;
 import vn.nvest.savings.wallet.WalletService;
 
@@ -16,17 +20,19 @@ public class MaturityService {
     private final SettlementRepository settlementRepository;
     private final InterestAccrualService accrualService;
     private final WalletService walletService;
+    private final OutboxService outboxService;
 
     public MaturityService(SavingsAccountRepository accountRepository,
                            SavingsProductRepository productRepository,
                            SettlementRepository settlementRepository,
                            InterestAccrualService accrualService,
-                           WalletService walletService) {
+                           WalletService walletService, OutboxService outboxService) {
         this.accountRepository = accountRepository;
         this.productRepository = productRepository;
         this.settlementRepository = settlementRepository;
         this.accrualService = accrualService;
         this.walletService = walletService;
+        this.outboxService = outboxService;
     }
 
     /**
@@ -76,11 +82,15 @@ public class MaturityService {
             newAccountId = next.getId();
         }
 
-        // 5) Biên lai quyết toán
+        // 5) Biên lai quyết toán, rồi phát sự kiện trong cùng transaction
         Settlement settlement = settlementRepository.save(new Settlement(
                 accountId, SettlementType.MATURITY, plan.applied(),
                 account.getPrincipal(), interest, newAccountId,
                 ledgerTx.map(LedgerTransaction::getId).orElse(null), plan.fallbackReason()));
+        outboxService.record(Topics.SAVINGS_EVENTS, EventTypes.SAVINGS_MATURED,
+                "savings-matured:" + accountId, "user:" + account.getUserId(),
+                new SavingsMaturedEvent(accountId, account.getUserId(), account.getPrincipal(), interest,
+                        plan.applied().name(), plan.fallbackReason(), newAccountId));
         return Optional.of(settlement);
     }
 }

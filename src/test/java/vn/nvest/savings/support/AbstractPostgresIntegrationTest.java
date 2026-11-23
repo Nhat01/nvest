@@ -17,6 +17,10 @@ import java.util.UUID;
 
 @SpringBootTest(properties = {
         "nvest.scheduling.enabled=false",
+        // Test nghiệp vụ không cần Kafka. Bật ở đây sẽ khiến KafkaAdmin chờ broker
+        // ~30 giây mỗi lần dựng context (và log lỗi) dù test không đụng tới Kafka.
+        // Test riêng về Kafka tự bật lại bằng @DynamicPropertySource.
+        "nvest.kafka.enabled=false",
         // Test dùng khóa JWT mặc định; JwtSecretGuard chỉ cho phép khi bật rõ ràng.
         "nvest.security.jwt.allow-dev-secret=true",
         // Test nghiệp vụ không phụ thuộc bộ đếm đăng nhập; test riêng sẽ bật lại.
