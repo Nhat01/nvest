@@ -166,11 +166,6 @@ public class WalletService {
         }
     }
 
-    private Wallet userWallet(long userId) {
-        return walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new WalletNotFoundException("No wallet for user " + userId));
-    }
-
     private long userWalletId(long userId) {
         return walletRepository.findIdByUserId(userId)
                 .orElseThrow(() -> new WalletNotFoundException("No wallet for user " + userId));

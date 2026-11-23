@@ -18,7 +18,9 @@ import java.util.UUID;
 @SpringBootTest(properties = {
         "nvest.scheduling.enabled=false",
         // Test dùng khóa JWT mặc định; JwtSecretGuard chỉ cho phép khi bật rõ ràng.
-        "nvest.security.jwt.allow-dev-secret=true"
+        "nvest.security.jwt.allow-dev-secret=true",
+        // Test nghiệp vụ không phụ thuộc bộ đếm đăng nhập; test riêng sẽ bật lại.
+        "nvest.security.login-rate-limit.enabled=false"
 })
 @AutoConfigureMockMvc
 public abstract class AbstractPostgresIntegrationTest {

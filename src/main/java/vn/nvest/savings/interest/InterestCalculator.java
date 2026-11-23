@@ -1,12 +1,8 @@
 package vn.nvest.savings.interest;
 
-import lombok.experimental.ExtensionMethod;
-import vn.nvest.savings.utils.Extensions;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-@ExtensionMethod(Extensions.class)
 public final class InterestCalculator {
 
     /** R6: lãi suất không kỳ hạn 0,5%/năm. */
