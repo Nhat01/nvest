@@ -35,10 +35,16 @@ public class WalletService {
         return new WalletBalance(view.getAvailableBalance(), view.getHeldBalance());
     }
 
-    /** Sao kê: các dòng sổ cái của ví user, mới nhất trước. */
+    /** Sao kê có lọc + phân trang: các dòng sổ cái của ví user, mới nhất trước. */
     @Transactional(readOnly = true)
-    public List<StatementLine> getStatement(long userId, int page, int size) {
-        return ledgerService.getStatement(userWalletId(userId), page, size);
+    public TransactionHistoryPage getStatement(long userId, TransactionFilter filter, int page, int size) {
+        return ledgerService.getStatement(userWalletId(userId), filter, page, size);
+    }
+
+    /** Export CSV dùng cùng bộ lọc với danh sách, nhưng không phân trang. */
+    @Transactional(readOnly = true)
+    public TransactionExport exportStatement(long userId, TransactionFilter filter) {
+        return ledgerService.exportStatement(userWalletId(userId), filter);
     }
 
     /** Tiền từ bên ngoài vào ví user, kèm tham chiếu về nghiệp vụ gốc (ví dụ giao dịch thanh toán). */

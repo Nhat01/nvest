@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * Trang thanh toán giả để đi hết luồng nạp tiền khi chạy với {@code nvest.payment.provider=mock}.
+ * Trang thanh toán giả để đi hết luồng nạp tiền khi chạy với nvest.payment.provider=mock.
  *
- * <p>CHỈ tồn tại ở chế độ mock. Không dùng cho tiền thật: bất kỳ ai có mã đơn đều bấm được
+ * CHỈ tồn tại ở chế độ mock. Không dùng cho tiền thật: bất kỳ ai có mã đơn đều bấm được
  * "Thanh toán", và tiền chỉ là tiền ảo trong ví. Khi provider=vnpay controller này không được tạo.
  */
 @Controller
@@ -64,7 +64,7 @@ public class MockCheckoutController {
 
     /**
      * Cổng thật sẽ gọi webhook của ta; ở đây ta tự dựng webhook đã ký rồi đưa qua đúng luồng
-     * {@link DepositService#handleWebhook} để kiểm tra chữ ký và cộng tiền y như thật.
+     * DepositService.handleWebhook để kiểm tra chữ ký và cộng tiền y như thật.
      */
     private void decide(String orderCode, GatewayStatus status) {
         paymentRepository.findByOrderCode(orderCode)

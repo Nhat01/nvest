@@ -8,12 +8,12 @@ import org.springframework.stereotype.Component;
 /**
  * Chặn việc chạy production bằng khóa JWT mặc định trong mã nguồn.
  *
- * <p>Khóa mặc định dài >= 32 byte nên lọt qua kiểm tra độ dài của {@link TokenService}.
- * Nếu không chặn, một deployment quên set {@code NVEST_JWT_SECRET} sẽ ký token bằng khóa
+ * Khóa mặc định dài >= 32 byte nên lọt qua kiểm tra độ dài của TokenService.
+ * Nếu không chặn, một deployment quên set NVEST_JWT_SECRET sẽ ký token bằng khóa
  * ai đọc mã nguồn cũng biết.
  *
- * <p>Chỉ cho phép khóa mặc định khi bật rõ ràng {@code NVEST_ALLOW_DEV_JWT_SECRET=true}.
- * Cố ý không tự động cho phép theo profile: profile {@code dev} còn mở endpoint nạp tiền
+ * Chỉ cho phép khóa mặc định khi bật rõ ràng NVEST_ALLOW_DEV_JWT_SECRET=true.
+ * Cố ý không tự động cho phép theo profile: profile dev còn mở endpoint nạp tiền
  * thử, nên không muốn khuyến khích bật nó ở production.
  */
 @Component

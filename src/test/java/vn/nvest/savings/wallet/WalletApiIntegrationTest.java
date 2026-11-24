@@ -41,15 +41,20 @@ class WalletApiIntegrationTest extends AbstractPostgresIntegrationTest {
 
         mockMvc.perform(get("/api/wallet/transactions").header(HttpHeaders.AUTHORIZATION, bearer(userId)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(3)))
-                .andExpect(jsonPath("$[0].txType").value("WITHDRAW_HOLD"))
-                .andExpect(jsonPath("$[0].balanceType").value("HELD"))
-                .andExpect(jsonPath("$[0].amount").value(100_000))
-                .andExpect(jsonPath("$[0].createdAt").isNotEmpty())
-                .andExpect(jsonPath("$[1].balanceType").value("AVAILABLE"))
-                .andExpect(jsonPath("$[1].amount").value(-100_000))
-                .andExpect(jsonPath("$[2].txType").value("DEPOSIT"))
-                .andExpect(jsonPath("$[2].amount").value(500_000));
+                .andExpect(jsonPath("$.items", hasSize(3)))
+                .andExpect(jsonPath("$.items[0].txType").value("WITHDRAW_HOLD"))
+                .andExpect(jsonPath("$.items[0].balanceType").value("HELD"))
+                .andExpect(jsonPath("$.items[0].amount").value(100_000))
+                .andExpect(jsonPath("$.items[0].createdAt").isNotEmpty())
+                .andExpect(jsonPath("$.items[1].balanceType").value("AVAILABLE"))
+                .andExpect(jsonPath("$.items[1].amount").value(-100_000))
+                .andExpect(jsonPath("$.items[2].txType").value("DEPOSIT"))
+                .andExpect(jsonPath("$.items[2].amount").value(500_000))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalItems").value(3))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 
     @Test
@@ -60,12 +65,18 @@ class WalletApiIntegrationTest extends AbstractPostgresIntegrationTest {
         walletService.deposit(alice, 100_000, "second:" + UUID.randomUUID());
 
         mockMvc.perform(get("/api/wallet/transactions?page=0&size=1").header(HttpHeaders.AUTHORIZATION, bearer(alice)))
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].amount").value(100_000));
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].amount").value(100_000))
+                .andExpect(jsonPath("$.totalItems").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.hasPrevious").value(false));
         mockMvc.perform(get("/api/wallet/transactions?page=1&size=1").header(HttpHeaders.AUTHORIZATION, bearer(alice)))
-                .andExpect(jsonPath("$[0].amount").value(500_000));
+                .andExpect(jsonPath("$.items[0].amount").value(500_000))
+                .andExpect(jsonPath("$.hasNext").value(false))
+                .andExpect(jsonPath("$.hasPrevious").value(true));
         mockMvc.perform(get("/api/wallet/transactions").header(HttpHeaders.AUTHORIZATION, bearer(bob)))
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].amount").value(300_000));
+                .andExpect(jsonPath("$.items", hasSize(1)))
+                .andExpect(jsonPath("$.items[0].amount").value(300_000));
     }
 }

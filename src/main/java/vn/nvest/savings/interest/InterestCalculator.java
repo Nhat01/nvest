@@ -15,7 +15,7 @@ public final class InterestCalculator {
     }
 
     /**
-     * Lãi lũy kế sau {@code days} ngày: floor(gốc × lãi suất × days / 365).
+     * Lãi lũy kế sau days ngày: floor(gốc × lãi suất × days / 365).
      * Dùng cho cả lãi tổng cuối kỳ (R8) lẫn lãi lũy kế từng ngày (R10).
      */
     public static long accruedInterest(long principal, BigDecimal annualRate, int days) {

@@ -1,5 +1,6 @@
 package vn.nvest.savings.wallet;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -91,10 +92,27 @@ public class LedgerService {
         }
     }
 
+    /** Giới hạn số dòng export để một request không kéo cả sổ cái vào bộ nhớ. */
+    public static final int MAX_EXPORT_ROWS = 10_000;
+
     @Transactional(readOnly = true)
-    public List<StatementLine> getStatement(long walletId, int page, int size) {
+    public TransactionHistoryPage getStatement(long walletId, TransactionFilter filter, int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);   // R68: tối đa 100 dòng mỗi trang
-        return entryRepository.findStatement(walletId, PageRequest.of(safePage, safeSize));
+        Page<StatementLine> result = entryRepository.searchStatement(
+                walletId, filter, PageRequest.of(safePage, safeSize));
+        return TransactionHistoryPage.from(result);
+    }
+
+    /** Export tối đa MAX_EXPORT_ROWS dòng; lấy dư 1 dòng để biết dữ liệu có bị cắt hay không. */
+    @Transactional(readOnly = true)
+    public TransactionExport exportStatement(long walletId, TransactionFilter filter) {
+        List<StatementLine> rows = entryRepository.searchStatement(
+                walletId, filter, MAX_EXPORT_ROWS + 1);
+        boolean truncated = rows.size() > MAX_EXPORT_ROWS;
+        if (truncated) {
+            rows = rows.subList(0, MAX_EXPORT_ROWS);
+        }
+        return new TransactionExport(rows, truncated);
     }
 }
