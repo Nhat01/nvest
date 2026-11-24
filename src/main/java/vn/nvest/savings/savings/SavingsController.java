@@ -2,8 +2,10 @@ package vn.nvest.savings.savings;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import vn.nvest.savings.common.CurrentUser;
@@ -27,13 +30,16 @@ public class SavingsController {
     private final EarlyWithdrawalService earlyWithdrawalService;
     private final InterestAccrualService accrualService;
     private final SavingsSummaryService summaryService;
+    private final SavingsSimulationService simulationService;
 
     public SavingsController(SavingsService savingsService, EarlyWithdrawalService earlyWithdrawalService,
-                             InterestAccrualService accrualService, SavingsSummaryService summaryService) {
+                             InterestAccrualService accrualService, SavingsSummaryService summaryService,
+                             SavingsSimulationService simulationService) {
         this.savingsService = savingsService;
         this.earlyWithdrawalService = earlyWithdrawalService;
         this.accrualService = accrualService;
         this.summaryService = summaryService;
+        this.simulationService = simulationService;
     }
 
     @GetMapping("/products")
@@ -72,6 +78,28 @@ public class SavingsController {
     public SavingsAccountResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         SavingsAccount account = savingsService.getForUser(CurrentUser.id(jwt), id);
         return toResponse(account, accrualService.getAccruedInterest(id));
+    }
+
+    /**
+     * Máy tính lãi cho một sản phẩm, không tạo gói. amount phải trong khoảng R3.
+     * startDate/asOfDate là ngày nghiệp vụ Việt Nam; bỏ trống thì lấy hôm nay.
+     */
+    @GetMapping("/products/{code}/simulation")
+    public SavingsSimulationResponse simulateProduct(
+            @PathVariable String code,
+            @RequestParam long amount,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
+        return simulationService.simulateProduct(code, amount, startDate, asOfDate);
+    }
+
+    /** Mô phỏng rút trước hạn cho gói của chính user; không đổi trạng thái hay số dư. */
+    @GetMapping("/{id}/early-withdrawal-simulation")
+    public SavingsSimulationResponse simulateEarlyWithdrawal(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate asOfDate) {
+        return simulationService.simulateAccount(CurrentUser.id(jwt), id, asOfDate);
     }
 
     /** Đổi cách xử lý khi đáo hạn, trước ngày đáo hạn (R16, R48). */
