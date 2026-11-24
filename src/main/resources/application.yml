@@ -20,6 +20,16 @@ spring:
         delivery.timeout.ms: 30000
         request.timeout.ms: 10000
         max.block.ms: 5000
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      max-poll-records: 50
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        max.poll.interval.ms: 300000
+    listener:
+      ack-mode: record
 
 # Tài liệu OpenAPI/Swagger. Đặt NVEST_OPENAPI_ENABLED=false khi deploy thật
 # để không công khai danh sách endpoint.
@@ -50,6 +60,8 @@ nvest:
     # Origin frontend, cách nhau bởi dấu phẩy. Mặc định là hai origin dev phổ biến;
     # set rỗng để chặn hết, hoặc đổi sang domain thật khi deploy.
     allowed-origins: ${NVEST_CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  checkout:
+    base-url: ${NVEST_CHECKOUT_BASE_URL:http://localhost:8080}
   security:
     jwt:
       secret: ${NVEST_JWT_SECRET:dev-only-secret-change-me-in-production-32b}

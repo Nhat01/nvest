@@ -1,4 +1,4 @@
--- V7: Transactional outbox. Sự kiện được ghi CÙNG transaction với nghiệp vụ, rồi relay mới gửi lên Kafka.
+-- V8: Transactional outbox. Sự kiện được ghi CÙNG transaction với nghiệp vụ, rồi relay mới gửi lên Kafka.
 CREATE TABLE outbox_events (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     event_id      VARCHAR(100) NOT NULL,     -- id nghiệp vụ duy nhất, consumer dùng để khử trùng

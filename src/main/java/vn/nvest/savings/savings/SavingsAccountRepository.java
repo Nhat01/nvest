@@ -16,6 +16,8 @@ public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, 
 
     List<SavingsAccount> findByUserIdOrderByIdDesc(Long userId);
 
+    List<SavingsAccount> findByUserIdAndStatus(Long userId, AccountStatus status);
+
     /** Khóa theo idempotency key cho tới hết transaction hiện tại (advisory lock của Postgres). */
     @Query(value = "SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(:key))) AS t",
             nativeQuery = true)

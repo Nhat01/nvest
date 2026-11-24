@@ -3,6 +3,7 @@ package vn.nvest.savings.savings;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -25,12 +26,14 @@ public class SavingsController {
     private final SavingsService savingsService;
     private final EarlyWithdrawalService earlyWithdrawalService;
     private final InterestAccrualService accrualService;
+    private final SavingsSummaryService summaryService;
 
     public SavingsController(SavingsService savingsService, EarlyWithdrawalService earlyWithdrawalService,
-                             InterestAccrualService accrualService) {
+                             InterestAccrualService accrualService, SavingsSummaryService summaryService) {
         this.savingsService = savingsService;
         this.earlyWithdrawalService = earlyWithdrawalService;
         this.accrualService = accrualService;
+        this.summaryService = summaryService;
     }
 
     @GetMapping("/products")
@@ -46,20 +49,29 @@ public class SavingsController {
                                        @Valid @RequestBody OpenSavingsRequest request) {
         SavingsAccount account = savingsService.open(CurrentUser.id(jwt), request.productCode(),
                 request.amount(), request.maturityOption(), idempotencyKey);
-        return SavingsAccountResponse.from(account, null);
+        return toResponse(account, null);
     }
 
     @GetMapping
     public List<SavingsAccountResponse> list(@AuthenticationPrincipal Jwt jwt) {
-        return savingsService.listByUser(CurrentUser.id(jwt)).stream()
-                .map(account -> SavingsAccountResponse.from(account, null)).toList();
+        List<SavingsAccount> accounts = savingsService.listByUser(CurrentUser.id(jwt));
+        Map<Long, SavingsProduct> products = savingsService.productsOf(accounts);
+        return accounts.stream()
+                .map(account -> SavingsAccountResponse.from(account, products.get(account.getProductId()), null))
+                .toList();
+    }
+
+    /** Tổng hợp các gói đang chạy của chính user: gốc, lãi tạm tính, lãi dự kiến cả kỳ (R11). */
+    @GetMapping("/summary")
+    public SavingsSummary summary(@AuthenticationPrincipal Jwt jwt) {
+        return summaryService.summarize(CurrentUser.id(jwt));
     }
 
     /** Chi tiết một gói, kèm lãi tạm tính đã ghi đến hết hôm qua (R11, R40). */
     @GetMapping("/{id}")
     public SavingsAccountResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         SavingsAccount account = savingsService.getForUser(CurrentUser.id(jwt), id);
-        return SavingsAccountResponse.from(account, accrualService.getAccruedInterest(id));
+        return toResponse(account, accrualService.getAccruedInterest(id));
     }
 
     /** Đổi cách xử lý khi đáo hạn, trước ngày đáo hạn (R16, R48). */
@@ -68,12 +80,17 @@ public class SavingsController {
                                                        @Valid @RequestBody ChangeOptionRequest request) {
         SavingsAccount account = savingsService.changeMaturityOption(
                 CurrentUser.id(jwt), id, request.maturityOption());
-        return SavingsAccountResponse.from(account, null);
+        return toResponse(account, null);
     }
 
     /** Rút trước hạn toàn bộ gói (R22, R23, R51). Gửi lại thì trả biên lai cũ (R52). */
     @PostMapping("/{id}/early-withdrawal")
     public SettlementResponse withdrawEarly(@AuthenticationPrincipal Jwt jwt, @PathVariable long id) {
         return SettlementResponse.from(earlyWithdrawalService.withdraw(CurrentUser.id(jwt), id));
+    }
+
+    private SavingsAccountResponse toResponse(SavingsAccount account, Long accruedInterest) {
+        SavingsProduct product = savingsService.productsOf(List.of(account)).get(account.getProductId());
+        return SavingsAccountResponse.from(account, product, accruedInterest);
     }
 }

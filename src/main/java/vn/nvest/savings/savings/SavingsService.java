@@ -7,9 +7,12 @@ import vn.nvest.savings.wallet.WalletService;
 
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class SavingsService {
@@ -106,6 +109,14 @@ public class SavingsService {
     @Transactional(readOnly = true)
     public List<SavingsProduct> listOnSaleProducts() {
         return productRepository.findByStatusOrderByTermDays(ProductStatus.ON_SALE);
+    }
+
+    /** Sản phẩm của các gói (kể cả sản phẩm đã ngừng bán), một truy vấn duy nhất, để hiển thị tên và mã. */
+    @Transactional(readOnly = true)
+    public Map<Long, SavingsProduct> productsOf(Collection<SavingsAccount> accounts) {
+        List<Long> ids = accounts.stream().map(SavingsAccount::getProductId).distinct().toList();
+        return productRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(SavingsProduct::getId, product -> product));
     }
 
     /** Gói của người khác coi như không tồn tại (R68). */

@@ -17,6 +17,9 @@ public interface InterestAccrualRepository extends JpaRepository<InterestAccrual
 
     long countByAccountId(Long accountId);
 
+    @Query("select coalesce(sum(a.amount), 0L) from InterestAccrual a where a.accountId in :accountIds")
+    long sumAmountByAccountIds(@Param("accountIds") java.util.Collection<Long> accountIds);
+
     @Query("select coalesce(sum(a.amount), 0L) from InterestAccrual a where a.accountId = :accountId")
     long sumAmountByAccountId(@Param("accountId") Long accountId);
 }
