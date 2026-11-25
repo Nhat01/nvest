@@ -108,6 +108,12 @@ public class ApiExceptionHandler {
                 .body(problem);
     }
 
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ProblemDetail onInvalidRefreshToken(InvalidRefreshTokenException e) {
+        return problem(HttpStatus.UNAUTHORIZED, "Authentication failed", e.getMessage());
+    }
+
+
     // ---- 403: đã xác thực nhưng không đủ quyền ----
 
     @ExceptionHandler(AccessDeniedException.class)

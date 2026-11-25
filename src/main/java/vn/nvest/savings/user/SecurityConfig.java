@@ -25,7 +25,7 @@ import vn.nvest.savings.common.CorsProperties;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({CorsProperties.class, LoginRateLimitProperties.class})
+@EnableConfigurationProperties({CorsProperties.class, LoginRateLimitProperties.class, RefreshTokenProperties.class})
 public class SecurityConfig {
 
     @Bean

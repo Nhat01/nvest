@@ -41,7 +41,7 @@ Các quy tắc được đánh số theo thứ tự ra đời, nhưng nằm tron
 | L1–L9 | J. Giới hạn đã biết |
 | R40–R42 | K. Tính lãi hàng ngày |
 | R43–R50 | L. Quyết toán khi đáo hạn |
-| R61–R64 | M. Xác thực và phân quyền |
+| R61–R64, R72–R74 | M. Xác thực và phân quyền |
 | R65–R68 | N. Quy ước API |
 | R69–R71 | O. Quản trị và môi trường dev |
 
@@ -194,7 +194,7 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | **L4** | Tạo phiên thanh toán nạp tiền gọi cổng ngay trong transaction cơ sở dữ liệu. Với cổng giả thì không sao; với cổng thật nên tách thành hai bước (lưu đơn, rồi gọi cổng ngoài transaction) để không giữ kết nối DB trong lúc chờ mạng. | Khi chuyển sang cổng thật. |
 | **L5** | Cổng báo thành công nhưng số tiền khác đơn thì hệ thống chỉ từ chối và ghi log, chưa có quy trình xử lý thủ công hay cảnh báo. | Khi có kênh vận hành/cảnh báo. |
 | **L6** | Lệnh rút `UNKNOWN` mà cổng báo không có dấu vết sau 2 giờ bị tự động trả tiền về ví. Nếu cổng thật xử lý lệnh đó rất muộn (hiếm gặp), user có thể nhận tiền hai lần. | Khi dùng cổng thật: thêm quy trình duyệt thủ công và cảnh báo. |
-| **L7** | Chưa có thu hồi token (token đã cấp vẫn dùng được đến khi hết hạn, kể cả sau khi khóa tài khoản) và chưa có refresh token. Giới hạn đăng nhập là bộ đếm trong bộ nhớ của từng instance: mất khi restart và không chia sẻ giữa nhiều instance. | Trước khi cho người thật dùng: thêm refresh token/thu hồi token, và chuyển bộ đếm sang Redis nếu chạy nhiều instance. |
+| **L7** | Refresh token đã thu hồi được theo phiên (R72–R74), nhưng **access token** vẫn là JWT stateless: sau logout hoặc sau khi khóa tài khoản, access token đã cấp vẫn dùng được tới khi hết hạn (tối đa 1 giờ). Muốn thu hồi ngay phải thêm denylist hoặc rút ngắn TTL. Giới hạn đăng nhập là bộ đếm trong bộ nhớ của từng instance: mất khi restart và không chia sẻ giữa nhiều instance. | Chấp nhận được với TTL 1 giờ. Trước khi cho người thật dùng: cân nhắc denylist access token và chuyển bộ đếm sang Redis nếu chạy nhiều instance. |
 | **L8** | Sao kê đã lọc theo loại giao dịch, ngăn số dư, hướng tiền, khoảng ngày, khoảng tiền và từ khoá mô tả; export CSV giới hạn 10.000 dòng mỗi lần (header `X-Export-Truncated` báo khi bị cắt). Danh sách gói tiết kiệm không kèm lãi tạm tính (chỉ có ở màn hình chi tiết) để tránh truy vấn lặp theo từng gói. | Khi cần export nhiều hơn 10.000 dòng (chuyển sang job nền) hoặc hiển thị lãi tạm tính hàng loạt. |
 | **L9** | Chưa có nhật ký kiểm toán cho thao tác của admin (ai đổi gì, khi nào, giá trị cũ và mới). Hai admin sửa cùng một sản phẩm cùng lúc thì bản ghi sau thắng. | Khi có nhiều admin: thêm bảng nhật ký và cột phiên bản cho sản phẩm. |
 
@@ -229,6 +229,9 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 | **R62** | Đăng nhập trả JWT ký HS256, hết hạn sau 1 giờ (cấu hình được), chứa id user (`sub`), email và vai trò (`role`). |
 | **R63** | Sai email, sai mật khẩu hoặc tài khoản bị khóa đều trả **cùng một lỗi 401 chung** và tốn thời gian xử lý tương đương, để không lộ email nào đã đăng ký. |
 | **R64** | Mọi API ngoài `/api/auth/**` đều yêu cầu token hợp lệ; `/webhooks/**` xác thực bằng chữ ký chứ không bằng token; chỉ `/actuator/health` và tài liệu API mở công khai. User chỉ thao tác trên dữ liệu của chính mình: id lấy từ token, **không bao giờ** từ nội dung request. |
+| **R72** | Refresh token là chuỗi ngẫu nhiên 32 byte, mã hóa Base64URL không padding. Server chỉ lưu hash SHA-256 dạng hex, không bao giờ lưu hay log token gốc. Mỗi lần đăng nhập tạo một `family_id` riêng. Hạn dùng **tuyệt đối** 30 ngày (cấu hình `NVEST_REFRESH_TOKEN_TTL`), không trượt theo mỗi lần refresh. |
+| **R73** | Mỗi lần refresh, token cũ bị thu hồi với lý do `ROTATED` và một token mới cùng family, cùng `expires_at` được cấp. Dùng lại token đã thu hồi bị coi là bị lộ: trả 401 và thu hồi **toàn bộ** family với lý do `REUSE_DETECTED`. Token của family khác không bị ảnh hưởng. |
+| **R74** | Logout thu hồi refresh token của phiên hiện tại (`LOGOUT`), hoặc mọi phiên của user khi `allDevices=true` (`LOGOUT_ALL`). Endpoint idempotent: token không tồn tại hoặc đã thu hồi vẫn trả 204. Access token đã cấp vẫn dùng được tới khi hết hạn (xem L7). |
 
 ## N. Quy ước API
 

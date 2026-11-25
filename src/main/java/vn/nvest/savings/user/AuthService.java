@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.nvest.savings.common.EmailAlreadyUsedException;
 import vn.nvest.savings.common.InvalidCredentialsException;
+import vn.nvest.savings.common.InvalidRefreshTokenException;
 import vn.nvest.savings.wallet.WalletService;
 
 @Service
@@ -15,17 +16,17 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final TokenService tokenService;
     private final WalletService walletService;
+    private final RefreshTokenService refreshTokenService;
     private final String dummyHash;   // dùng để làm thời gian phản hồi bằng nhau khi email không tồn tại (R63)
 
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-                       TokenService tokenService, WalletService walletService) {
+                       WalletService walletService, RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
-        this.tokenService = tokenService;
         this.walletService = walletService;
         this.dummyHash = passwordEncoder.encode("not-a-real-password");
+        this.refreshTokenService = refreshTokenService;
     }
 
     /** R61: tạo user và ví của họ trong cùng một transaction. */
@@ -49,8 +50,8 @@ public class AuthService {
     }
 
     /** R62, R63: mọi lý do thất bại đều cho cùng một lỗi và tốn thời gian tương đương. */
-    @Transactional(readOnly = true)
-    public TokenService.IssuedToken login(String email, String rawPassword) {
+    @Transactional
+    public TokenPair login(String email, String rawPassword) {
         Optional<User> user = userRepository.findByEmailIgnoreCase(email.trim());
 
         // Luôn băm một lần dù có tìm thấy user hay không
@@ -60,7 +61,20 @@ public class AuthService {
         if (user.isEmpty() || !passwordMatches || user.get().getStatus() != UserStatus.ACTIVE) {
             throw new InvalidCredentialsException();
         }
-        return tokenService.issue(user.get());
+        return refreshTokenService.issue(user.get());
+    }
+
+    // Không đặt @Transactional ở đây: rotate() tự mở transaction riêng.
+    // Nếu bọc ngoài, exception ném ra sẽ rollback luôn việc thu hồi family
+    // khi phát hiện dùng lại token.
+    public TokenPair refresh(String rawRefreshToken) {
+        return refreshTokenService.rotate(rawRefreshToken)
+                .orElseThrow(InvalidRefreshTokenException::new);
+    }
+
+    // revoke() tự mở transaction; token không tồn tại thì im lặng.
+    public void logout(String rawRefreshToken, boolean allDevices) {
+        refreshTokenService.revoke(rawRefreshToken, allDevices);
     }
 
     @Transactional(readOnly = true)

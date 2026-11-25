@@ -53,6 +53,49 @@ biến này.
 Các biến môi trường khác xem trong `.env.example`. Spring Boot không tự đọc file
 `.env`, phải export biến trước khi chạy hoặc cấu hình trong IDE.
 
+## Refresh token và logout
+
+Đăng nhập trả cả access token (JWT, 1 giờ) và refresh token (mặc định 30 ngày):
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"an@example.com","password":"S3cure-passw0rd"}'
+```
+
+```json
+{
+  "accessToken": "eyJ...",
+  "tokenType": "Bearer",
+  "expiresIn": 3600,
+  "refreshToken": "3xJ...",
+  "refreshExpiresIn": 2592000
+}
+```
+
+Lấy cặp token mới. Refresh token cũ bị thu hồi ngay sau khi dùng:
+
+```bash
+curl -s -X POST http://localhost:8080/api/auth/refresh \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"3xJ..."}'
+```
+
+Đăng xuất một phiên, hoặc mọi thiết bị với `"allDevices":true`:
+
+```bash
+curl -i -X POST http://localhost:8080/api/auth/logout \
+  -H 'Content-Type: application/json' \
+  -d '{"refreshToken":"3xJ...","allDevices":false}'
+```
+
+- Refresh token là chuỗi ngẫu nhiên 32 byte; server chỉ lưu hash SHA-256.
+- Mỗi lần đăng nhập là một phiên (`family_id`) riêng, logout một máy không đá máy khác.
+- Dùng lại refresh token đã xoay bị coi là bị lộ: cả phiên bị thu hồi và trả 401.
+- Logout trả `204`, gọi lại vẫn `204` (idempotent).
+- Access token đã cấp vẫn dùng được tới khi hết hạn (tối đa 1 giờ); xem L7 trong tài liệu nghiệp vụ.
+- Đổi thời hạn bằng `NVEST_REFRESH_TOKEN_TTL` (mặc định `P30D`).
+
 ## Chạy test
 
 ```bash
@@ -112,7 +155,7 @@ hàng tuần.
 
 ```text
 src/main/java/vn/nvest/savings
-├── user          đăng ký, đăng nhập, JWT
+├── user          đăng ký, đăng nhập, JWT, refresh token, logout
 ├── wallet        ví, giao dịch, xuất CSV
 ├── savings       sản phẩm, gói tiết kiệm, lãi, tất toán
 ├── interest      công thức tính lãi

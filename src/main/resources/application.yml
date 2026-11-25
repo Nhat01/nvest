@@ -80,3 +80,5 @@ nvest:
       enabled: ${NVEST_LOGIN_RATE_LIMIT_ENABLED:true}
       max-failures: ${NVEST_LOGIN_RATE_LIMIT_MAX_FAILURES:5}
       window: ${NVEST_LOGIN_RATE_LIMIT_WINDOW:PT15M}
+    refresh-token:
+      ttl: ${NVEST_REFRESH_TOKEN_TTL:P30D}
