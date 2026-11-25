@@ -1,0 +1,79 @@
+name: CI
+
+# Chạy ở mọi lần push và mọi pull request để nhánh tính năng cũng có phản hồi,
+# kể cả khi chưa mở pull request.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Push liên tiếp lên cùng một nhánh thì huỷ lần chạy cũ, chỉ giữ lần mới nhất.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build và test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v7
+
+      - name: Cài JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: maven
+
+      # Testcontainers tự khởi động container, không cần service container.
+      # Pull trước để bước test không phải chờ tải image.
+      - name: Tải trước image cho Testcontainers
+        run: |
+          docker pull postgres:16 || true
+          docker pull apache/kafka:3.9.0 || true
+
+      - name: Chạy build và toàn bộ test
+        run: mvn -B -ntp verify
+
+      - name: Lưu báo cáo test khi thất bại
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: surefire-reports
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  docker:
+    name: Build Docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v7
+
+      - name: Cài Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # Chỉ build để kiểm tra Dockerfile, không push lên registry.
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: false
+          tags: savings-platform:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

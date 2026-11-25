@@ -1,0 +1,15 @@
+# Những gì không cần đưa vào build context.
+.git
+.gitignore
+.github
+.idea
+.vscode
+.claude
+target
+docs
+*.md
+.env
+.env.*
+docker-compose.yml
+Dockerfile
+.dockerignore

@@ -1,3 +1,8 @@
+server:
+  # Nhiều nền tảng PaaS (Render, Cloud Run...) truyền cổng qua biến PORT.
+  # Chạy local hoặc Docker không set PORT thì dùng 8080.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: savings-platform
