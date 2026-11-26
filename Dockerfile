@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------------
 # Bước 1: build bằng Maven + JDK 21
 # ---------------------------------------------------------------------------
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-26 AS build
 WORKDIR /build
 
 # Copy pom.xml trước để tận dụng cache: chỉ khi pom đổi mới phải tải lại dependency.
