@@ -19,7 +19,7 @@ RUN --mount=type=cache,target=/root/.m2 \
 # ---------------------------------------------------------------------------
 # Bước 2: image chạy, chỉ chứa JRE và file jar
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:21-jre-jammy
+FROM eclipse-temurin:25-jre-jammy
 
 LABEL org.opencontainers.image.title="savings-platform" \
       org.opencontainers.image.description="Nền tảng tiết kiệm: ví, gói gửi tiết kiệm, lãi, thanh toán"
