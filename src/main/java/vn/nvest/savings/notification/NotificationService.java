@@ -3,6 +3,7 @@ package vn.nvest.savings.notification;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.text.NumberFormat;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import org.slf4j.Logger;
@@ -10,10 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.nvest.savings.outbox.DepositSucceededEvent;
-import vn.nvest.savings.outbox.EventTypes;
-import vn.nvest.savings.outbox.SavingsMaturedEvent;
-import vn.nvest.savings.outbox.WithdrawalSettledEvent;
+import vn.nvest.savings.outbox.*;
 
 @Service
 public class NotificationService {
@@ -21,6 +19,7 @@ public class NotificationService {
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     static final String CONSUMER = "notification";
     private static final Locale VI = Locale.of("vi", "VN");
+    private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private record Draft(long userId, String message) {
     }
@@ -82,12 +81,35 @@ public class NotificationService {
                     SavingsMaturedEvent e = objectMapper.readValue(payload, SavingsMaturedEvent.class);
                     yield new Draft(e.userId(), maturityMessage(e));
                 }
+                case EventTypes.SAVINGS_MATURITY_REMINDER -> {
+                    SavingsMaturityReminderEvent e = objectMapper.readValue(payload, SavingsMaturityReminderEvent.class);
+                    yield new Draft(e.userId(), reminderMessage(e));
+                }
                 default -> null;
             };
         } catch (JsonProcessingException e) {
             // Payload hỏng: thử lại bao nhiêu lần cũng vẫn hỏng, nên dùng loại lỗi "không thử lại" (xem KafkaConsumerConfig)
             throw new IllegalArgumentException("Malformed " + eventType + " payload", e);
         }
+    }
+
+    private static String reminderMessage(SavingsMaturityReminderEvent e) {
+        String when = e.daysLeft() == 1 ? "ngày mai" : "sau " + e.daysLeft() + " ngày";
+        String option = switch (e.maturityOption()) {
+            case "RENEW_PRINCIPAL" -> "tái tục gốc, lãi về ví";
+            case "RENEW_ALL" -> "tái tục cả gốc và lãi";
+            default -> "nhận gốc và lãi về ví";
+        };
+        StringBuilder message = new StringBuilder("Gói #").append(e.accountId())
+                .append(" đáo hạn ").append(when).append(" (").append(DATE.format(e.maturityDate()))
+                .append("): gốc ").append(vnd(e.principal()))
+                .append(", lãi dự kiến ").append(vnd(e.expectedInterest()))
+                .append(". Hiện chọn: ").append(option)
+                .append(". Bạn có thể đổi tùy chọn trước ngày đáo hạn.");
+        if (!e.productOnSale() && !"PAYOUT_ALL".equals(e.maturityOption())) {   // R18
+            message.append(" Lưu ý: sản phẩm đã ngừng bán nên gói sẽ được trả hết về ví thay vì tái tục.");
+        }
+        return message.toString();   // tối đa khoảng 350 ký tự, nằm trong VARCHAR(500) của notifications.message
     }
 
     private static String maturityMessage(SavingsMaturedEvent e) {

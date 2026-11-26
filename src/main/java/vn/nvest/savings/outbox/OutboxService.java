@@ -23,13 +23,13 @@ public class OutboxService {
      * vì khi đó sự kiện và dữ liệu không còn cùng sống cùng chết.
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void record(String topic, String eventType, String eventId, String aggregateKey, Object payload) {
+    public boolean record(String topic, String eventType, String eventId, String aggregateKey, Object payload) {
         String json;
         try {
             json = objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Cannot serialize event " + eventId, e);
         }
-        repository.insertIfAbsent(eventId, topic, eventType, aggregateKey, json);
+        return repository.insertIfAbsent(eventId, topic, eventType, aggregateKey, json) > 0;
     }
 }

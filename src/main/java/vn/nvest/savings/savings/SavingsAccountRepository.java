@@ -38,4 +38,11 @@ public interface SavingsAccountRepository extends JpaRepository<SavingsAccount, 
             + "order by a.maturityDate, a.id")
     List<Long> findIdsByStatusMaturingOnOrBefore(@Param("status") AccountStatus status,
                                                  @Param("asOf") LocalDate asOf);
+
+    /** Gói ACTIVE đáo hạn trong khoảng (today, until], gần hạn nhất trước. */
+    @Query("select a.id from SavingsAccount a where a.status = :status "
+            + "and a.maturityDate > :today and a.maturityDate <= :until order by a.maturityDate, a.id")
+    List<Long> findIdsByStatusMaturingBetween(@Param("status") AccountStatus status,
+                                              @Param("today") LocalDate today,
+                                              @Param("until") LocalDate until);
 }
