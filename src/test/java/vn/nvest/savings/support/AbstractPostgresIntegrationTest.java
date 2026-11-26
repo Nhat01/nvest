@@ -69,13 +69,36 @@ public abstract class AbstractPostgresIntegrationTest {
 
     /** Tạo user mới (email duy nhất) kèm ví, và nạp sẵn số tiền ban đầu nếu > 0. */
     protected long createUserWithDeposit(long amount) {
+        return createUserWithDeposit(amount, true);
+    }
+
+    /**
+     * @param verified true để mô phỏng user cũ (V11 backfill đã đánh dấu xác thực).
+     *                 Test cần user chưa xác thực thì truyền false.
+     */
+    protected long createUserWithDeposit(long amount, boolean verified) {
         Long userId = jdbc.queryForObject(
-                "INSERT INTO users (email, password_hash, full_name) VALUES (?, 'x', 'Test') RETURNING id",
+                "INSERT INTO users (email, password_hash, full_name, email_verified_at) "
+                        + "VALUES (?, 'x', 'Test', " + (verified ? "now()" : "NULL") + ") RETURNING id",
                 Long.class, "u-" + UUID.randomUUID() + "@test.local");
         walletService.createUserWallet(userId);
         if (amount > 0) {
             walletService.deposit(userId, amount, "seed:" + userId);
         }
         return userId;
+    }
+
+    /**
+     * Test không đi qua hộp thư, nên đánh dấu xác thực trực tiếp sau khi đăng ký.
+     * Dùng cho các test cần login mà không muốn phụ thuộc luồng verify.
+     */
+    protected void markEmailVerified(String email) {
+        int updated = jdbc.update(
+                "UPDATE users SET email_verified_at = now() "
+                        + "WHERE lower(email) = lower(?) AND email_verified_at IS NULL",
+                email);
+        if (updated != 1) {
+            throw new IllegalStateException("Expected exactly one unverified user with email " + email);
+        }
     }
 }

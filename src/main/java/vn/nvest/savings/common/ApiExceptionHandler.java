@@ -81,6 +81,11 @@ public class ApiExceptionHandler {
         return problem(HttpStatus.BAD_REQUEST, "Validation failed", "Request validation failed");
     }
 
+    @ExceptionHandler(InvalidEmailTokenException.class)
+    public ProblemDetail onInvalidEmailToken(InvalidEmailTokenException e) {
+        return problem(HttpStatus.BAD_REQUEST, "Bad request", e.getMessage());
+    }
+
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ProblemDetail onUnsupportedMediaType(HttpMediaTypeNotSupportedException e) {
         return problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported media type",
@@ -119,6 +124,17 @@ public class ApiExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ProblemDetail onAccessDenied(AccessDeniedException e) {
         return problem(HttpStatus.FORBIDDEN, "Forbidden", "Access is denied");
+    }
+
+    /**
+     * Mật khẩu đúng nhưng email chưa xác thực. Kèm "code" để client phân biệt
+     * với 403 do thiếu quyền mà không phải đoán chuỗi thông báo.
+     */
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ProblemDetail onEmailNotVerified(EmailNotVerifiedException e) {
+        ProblemDetail problem = problem(HttpStatus.FORBIDDEN, "Email not verified", e.getMessage());
+        problem.setProperty("code", "EMAIL_NOT_VERIFIED");
+        return problem;
     }
 
     // ---- 404: không thấy, hoặc không thuộc về user (R68) ----

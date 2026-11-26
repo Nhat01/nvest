@@ -96,6 +96,58 @@ curl -i -X POST http://localhost:8080/api/auth/logout \
 - Access token đã cấp vẫn dùng được tới khi hết hạn (tối đa 1 giờ); xem L7 trong tài liệu nghiệp vụ.
 - Đổi thời hạn bằng `NVEST_REFRESH_TOKEN_TTL` (mặc định `P30D`).
 
+## Xác thực email và quên mật khẩu
+
+Đăng ký tạo tài khoản **chưa xác thực**. Dev mặc định dùng `LoggingEmailSender`
+nên link nằm trong log; hoặc chạy Mailpit (`localhost:1025`) và đặt
+`NVEST_MAIL_ENABLED=true`.
+
+```bash
+# 1. Đăng ký (201, emailVerified=false). Link xác thực in ra log.
+curl -s -X POST http://localhost:8080/api/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"an@example.com","password":"S3cure-passw0rd","fullName":"Nguyen Van An"}'
+
+# 2. Xác thực email
+curl -i -X POST http://localhost:8080/api/auth/verify-email \
+  -H 'Content-Type: application/json' \
+  -d '{"token":"<token trong link>"}'
+
+# 3. Đăng nhập (trước bước 2 sẽ trả 403 với code EMAIL_NOT_VERIFIED)
+curl -s -X POST http://localhost:8080/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"an@example.com","password":"S3cure-passw0rd"}'
+```
+
+Gửi lại link xác thực (luôn `204`, kể cả email lạ hoặc đang trong cooldown 60 giây):
+
+```bash
+curl -i -X POST http://localhost:8080/api/auth/resend-verification \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"an@example.com"}'
+```
+
+Quên và đặt lại mật khẩu:
+
+```bash
+curl -i -X POST http://localhost:8080/api/auth/forgot-password \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"an@example.com"}'
+
+curl -i -X POST http://localhost:8080/api/auth/reset-password \
+  -H 'Content-Type: application/json' \
+  -d '{"token":"<token trong link>","newPassword":"N3w-passw0rd"}'
+```
+
+- Link xác thực sống 24 giờ; link reset sống 30 phút; cả hai dùng một lần.
+- Token gửi qua email là token gốc; database chỉ lưu hash SHA-256.
+- Gửi lại xác thực/quên mật khẩu luôn `204` để không ai dò được email đã đăng ký.
+- Reset mật khẩu thu hồi **mọi** refresh token (`PASSWORD_RESET`) và không tự đăng nhập.
+- Reset thành công cũng đánh dấu email đã xác thực: đây là cách lấy lại tài khoản
+  khi email đã bị người khác đăng ký trước nhưng chưa xác thực.
+- Đổi TTL/cooldown bằng `NVEST_EMAIL_VERIFICATION_TTL`, `NVEST_PASSWORD_RESET_TTL`,
+  `NVEST_EMAIL_TOKEN_COOLDOWN`. Chi tiết trong `docs/business-rules.md` (R75–R81, L10).
+
 ## Chạy test
 
 ```bash
@@ -155,7 +207,7 @@ hàng tuần.
 
 ```text
 src/main/java/vn/nvest/savings
-├── user          đăng ký, đăng nhập, JWT, refresh token, logout
+├── user          đăng ký, đăng nhập, JWT, refresh token, xác thực email, quên mật khẩu
 ├── wallet        ví, giao dịch, xuất CSV
 ├── savings       sản phẩm, gói tiết kiệm, lãi, tất toán
 ├── interest      công thức tính lãi
@@ -168,3 +220,4 @@ src/main/java/vn/nvest/savings
 ## Tài liệu
 
 Quy tắc nghiệp vụ: [docs/business-rules.md](docs/business-rules.md)
+Thiết kế xác thực email và đặt lại mật khẩu: [docs/feature-05-password-reset-email-verification.md](docs/feature-05-password-reset-email-verification.md)

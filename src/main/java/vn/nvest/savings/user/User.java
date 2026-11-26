@@ -12,6 +12,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -39,6 +41,9 @@ public class User {
     @Column(name = "status", nullable = false)
     private UserStatus status;
 
+    @Column(name = "email_verified_at")
+    private Instant emailVerifiedAt;
+
     /** Người dùng mới luôn là USER và ACTIVE. Quyền ADMIN chỉ cấp bằng cách khác, không qua đăng ký. */
     public static User register(String email, String passwordHash, String fullName) {
         User user = new User();
@@ -48,5 +53,20 @@ public class User {
         user.role = Role.USER;
         user.status = UserStatus.ACTIVE;
         return user;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerifiedAt != null;
+    }
+
+    /** Chỉ ghi nhận lần xác thực đầu tiên; gọi lại không đổi mốc thời gian. */
+    public void markEmailVerified(Instant now) {
+        if (emailVerifiedAt == null) {
+            emailVerifiedAt = now;
+        }
+    }
+
+    public void changePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 }

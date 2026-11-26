@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.nvest.savings.common.EmailAlreadyUsedException;
+import vn.nvest.savings.common.EmailNotVerifiedException;
 import vn.nvest.savings.common.InvalidCredentialsException;
 import vn.nvest.savings.common.InvalidRefreshTokenException;
 import vn.nvest.savings.wallet.WalletService;
@@ -60,6 +61,10 @@ public class AuthService {
 
         if (user.isEmpty() || !passwordMatches || user.get().getStatus() != UserStatus.ACTIVE) {
             throw new InvalidCredentialsException();
+        }
+        // R76: kiểm tra SAU khi mật khẩu đúng, để sai mật khẩu vẫn chỉ thấy 401 chung.
+        if (!user.get().isEmailVerified()) {
+            throw new EmailNotVerifiedException();
         }
         return refreshTokenService.issue(user.get());
     }

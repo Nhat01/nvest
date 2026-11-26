@@ -70,6 +70,8 @@ class AuthIntegrationTest extends AbstractPostgresIntegrationTest {
     private long registerAndGetId(String email) throws Exception {
         String body = register(email, PASSWORD, "Nguyen Van An").andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+        // Test không đi qua hộp thư: đánh dấu xác thực để login được.
+        markEmailVerified(email);
         return ((Number) JsonPath.read(body, "$.id")).longValue();
     }
 
@@ -218,5 +220,41 @@ class AuthIntegrationTest extends AbstractPostgresIntegrationTest {
 
         // Đường chưa tồn tại dưới /api vẫn yêu cầu đăng nhập trước (mặc định đóng)
         mockMvc.perform(get("/api/anything")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("R76: mật khẩu đúng nhưng email chưa xác thực trả 403 kèm code EMAIL_NOT_VERIFIED")
+    void loginBeforeVerificationReturns403() throws Exception {
+        String email = uniqueEmail();
+        register(email, PASSWORD, "Nguyen Van An").andExpect(status().isCreated());
+
+        login(email, PASSWORD)
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.code").value("EMAIL_NOT_VERIFIED"))
+                .andExpect(jsonPath("$.accessToken").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("R63/R76: sai mật khẩu khi email chưa xác thực vẫn 401, không lộ trạng thái xác thực")
+    void wrongPasswordBeforeVerificationStillReturns401() throws Exception {
+        String email = uniqueEmail();
+        register(email, PASSWORD, "Nguyen Van An").andExpect(status().isCreated());
+
+        login(email, "wrong-password")
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("R76: xác thực email xong đăng nhập được")
+    void loginAfterVerificationSucceeds() throws Exception {
+        String email = uniqueEmail();
+        register(email, PASSWORD, "Nguyen Van An").andExpect(status().isCreated());
+        markEmailVerified(email);
+
+        login(email, PASSWORD)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
     }
 }

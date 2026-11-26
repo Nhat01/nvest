@@ -38,6 +38,7 @@ class LoginRateLimitIntegrationTest extends AbstractPostgresIntegrationTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD
                                 + "\",\"fullName\":\"Rate Limit\"}"))
                 .andExpect(status().isCreated());
+        markEmailVerified(email);
     }
 
     private ResultActions login(String email, String password) throws Exception {

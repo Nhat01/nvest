@@ -5,15 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,7 +21,6 @@ public class RefreshTokenService {
     private final TokenService tokenService;
     private final Clock clock;
     private final RefreshTokenProperties properties;
-    private final SecureRandom secureRandom = new SecureRandom();
 
     public RefreshTokenService(RefreshTokenRepository refreshTokenRepository,
                                UserRepository userRepository,
@@ -44,10 +37,10 @@ public class RefreshTokenService {
     @Transactional
     public TokenPair issue(User user) {
         Instant now = clock.instant();
-        String rawToken = newRawToken();
+        String rawToken = OpaqueTokens.newRawToken();
         Instant expiresAt = now.plus(properties.ttl());
 
-        refreshTokenRepository.save(RefreshToken.issue(user.getId(), hash(rawToken), UUID.randomUUID(), now, expiresAt));
+        refreshTokenRepository.save(RefreshToken.issue(user.getId(), OpaqueTokens.sha256Hex(rawToken), UUID.randomUUID(), now, expiresAt));
 
         return new TokenPair(tokenService.issue(user), rawToken, properties.ttl().toSeconds());
     }
@@ -56,7 +49,7 @@ public class RefreshTokenService {
     public Optional<TokenPair> rotate(String rawToken) {
         Instant now = clock.instant();
 
-        Optional<RefreshToken> found = refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken));
+        Optional<RefreshToken> found = refreshTokenRepository.findByTokenHashForUpdate(OpaqueTokens.sha256Hex(rawToken));
         if (found.isEmpty()) {
             return Optional.empty();
         }
@@ -83,8 +76,8 @@ public class RefreshTokenService {
 
         current.rotate(now);
 
-        String newRawToken = newRawToken();
-        refreshTokenRepository.save(RefreshToken.issue(current.getUserId(), hash(newRawToken), current.getFamilyId(), now, current.getExpiresAt()));
+        String newRawToken = OpaqueTokens.newRawToken();
+        refreshTokenRepository.save(RefreshToken.issue(current.getUserId(), OpaqueTokens.sha256Hex(newRawToken), current.getFamilyId(), now, current.getExpiresAt()));
 
         long refreshExpiresIn = Math.max(0, Duration.between(now, current.getExpiresAt()).toSeconds());
         return Optional.of(new TokenPair(tokenService.issue(user.get()), newRawToken, refreshExpiresIn));
@@ -93,7 +86,7 @@ public class RefreshTokenService {
     @Transactional
     public void revoke(String rawToken, boolean allDevices) {
         Instant now = clock.instant();
-        refreshTokenRepository.findByTokenHashForUpdate(hash(rawToken)).ifPresent(token -> {
+        refreshTokenRepository.findByTokenHashForUpdate(OpaqueTokens.sha256Hex(rawToken)).ifPresent(token -> {
             if (allDevices) {
                 refreshTokenRepository.revokeAllByUser(token.getUserId(), now, RevokedReason.LOGOUT_ALL);
             } else if (!token.isRevoked()) {
@@ -102,20 +95,9 @@ public class RefreshTokenService {
         });
     }
 
-
-    private String newRawToken() {
-        byte[] bytes = new byte[32];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String hash(String rawToken) {
-        try {
-            MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = messageDigest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
+    /** Thu hồi mọi phiên của user, dùng khi đổi mật khẩu (R78). */
+    @Transactional
+    public int revokeAllForUser(long userId, RevokedReason reason) {
+        return refreshTokenRepository.revokeAllByUser(userId, clock.instant(), reason);
     }
 }

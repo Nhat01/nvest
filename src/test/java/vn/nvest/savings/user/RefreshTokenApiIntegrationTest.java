@@ -66,6 +66,7 @@ class RefreshTokenApiIntegrationTest extends AbstractPostgresIntegrationTest {
         mockMvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content(registerJson(email)))
                 .andExpect(status().isCreated());
+        markEmailVerified(email);
     }
 
     private ResultActions login(String email) throws Exception {

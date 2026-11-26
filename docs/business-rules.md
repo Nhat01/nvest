@@ -38,10 +38,10 @@ Các quy tắc được đánh số theo thứ tự ra đời, nhưng nằm tron
 | R27–R31, R54–R60 | G. Nạp và rút qua bên thứ ba |
 | R32–R35 | H. Sổ cái |
 | R36–R39 | I. Ràng buộc bổ sung từ thiết kế database |
-| L1–L9 | J. Giới hạn đã biết |
+| L1–L10 | J. Giới hạn đã biết |
 | R40–R42 | K. Tính lãi hàng ngày |
 | R43–R50 | L. Quyết toán khi đáo hạn |
-| R61–R64, R72–R74 | M. Xác thực và phân quyền |
+| R61–R64, R72–R81 | M. Xác thực và phân quyền |
 | R65–R68 | N. Quy ước API |
 | R69–R71 | O. Quản trị và môi trường dev |
 
@@ -197,6 +197,7 @@ Ghi chú: ví của user không bao giờ âm (`ck_wallets_user_no_overdraft`), 
 | **L7** | Refresh token đã thu hồi được theo phiên (R72–R74), nhưng **access token** vẫn là JWT stateless: sau logout hoặc sau khi khóa tài khoản, access token đã cấp vẫn dùng được tới khi hết hạn (tối đa 1 giờ). Muốn thu hồi ngay phải thêm denylist hoặc rút ngắn TTL. Giới hạn đăng nhập là bộ đếm trong bộ nhớ của từng instance: mất khi restart và không chia sẻ giữa nhiều instance. | Chấp nhận được với TTL 1 giờ. Trước khi cho người thật dùng: cân nhắc denylist access token và chuyển bộ đếm sang Redis nếu chạy nhiều instance. |
 | **L8** | Sao kê đã lọc theo loại giao dịch, ngăn số dư, hướng tiền, khoảng ngày, khoảng tiền và từ khoá mô tả; export CSV giới hạn 10.000 dòng mỗi lần (header `X-Export-Truncated` báo khi bị cắt). Danh sách gói tiết kiệm không kèm lãi tạm tính (chỉ có ở màn hình chi tiết) để tránh truy vấn lặp theo từng gói. | Khi cần export nhiều hơn 10.000 dòng (chuyển sang job nền) hoặc hiển thị lãi tạm tính hàng loạt. |
 | **L9** | Chưa có nhật ký kiểm toán cho thao tác của admin (ai đổi gì, khi nào, giá trị cũ và mới). Hai admin sửa cùng một sản phẩm cùng lúc thì bản ghi sau thắng. | Khi có nhiều admin: thêm bảng nhật ký và cột phiên bản cho sản phẩm. |
+| **L10** | Email gửi đồng bộ sau khi commit, không retry tự động, không theo dõi bounce/complaint. Chỉ có cooldown theo user (60 giây) cho endpoint gửi lại/quên mật khẩu; **chưa** giới hạn theo IP nên một IP có thể gửi mail cho nhiều email khác nhau. Nhà cung cấp SMTP free có hạn mức và có thể chặn. | Khi có người dùng thật: dùng outbox/queue cho email, thêm retry và theo dõi bounce, giới hạn theo IP (hoặc chuyển sang Redis nếu chạy nhiều instance). |
 
 ## K. Tính lãi hàng ngày
 
@@ -225,13 +226,20 @@ Hệ quả: số ngày đã ghi lãi của một gói bằng số ngày đã g�
 
 | Mã | Quy tắc |
 |---|---|
-| **R61** | Đăng ký: email duy nhất (không phân biệt hoa thường, lưu dạng chữ thường), mật khẩu 8 đến 72 ký tự, lưu dạng băm BCrypt (không bao giờ lưu hay trả mật khẩu gốc). Mỗi user có ví ngay khi đăng ký, trong cùng một transaction. |
+| **R61** | Đăng ký: email đúng định dạng, tối đa 255 ký tự, được trim và lưu dạng chữ thường; duy nhất theo `lower(email)` ở tầng database. Mật khẩu 8 đến 72 ký tự (và ≤ 72 byte UTF-8), lưu dạng băm BCrypt (không bao giờ lưu hay trả mật khẩu gốc). Mỗi user có ví ngay khi đăng ký, trong cùng một transaction. |
 | **R62** | Đăng nhập trả JWT ký HS256, hết hạn sau 1 giờ (cấu hình được), chứa id user (`sub`), email và vai trò (`role`). |
 | **R63** | Sai email, sai mật khẩu hoặc tài khoản bị khóa đều trả **cùng một lỗi 401 chung** và tốn thời gian xử lý tương đương, để không lộ email nào đã đăng ký. |
 | **R64** | Mọi API ngoài `/api/auth/**` đều yêu cầu token hợp lệ; `/webhooks/**` xác thực bằng chữ ký chứ không bằng token; chỉ `/actuator/health` và tài liệu API mở công khai. User chỉ thao tác trên dữ liệu của chính mình: id lấy từ token, **không bao giờ** từ nội dung request. |
 | **R72** | Refresh token là chuỗi ngẫu nhiên 32 byte, mã hóa Base64URL không padding. Server chỉ lưu hash SHA-256 dạng hex, không bao giờ lưu hay log token gốc. Mỗi lần đăng nhập tạo một `family_id` riêng. Hạn dùng **tuyệt đối** 30 ngày (cấu hình `NVEST_REFRESH_TOKEN_TTL`), không trượt theo mỗi lần refresh. |
 | **R73** | Mỗi lần refresh, token cũ bị thu hồi với lý do `ROTATED` và một token mới cùng family, cùng `expires_at` được cấp. Dùng lại token đã thu hồi bị coi là bị lộ: trả 401 và thu hồi **toàn bộ** family với lý do `REUSE_DETECTED`. Token của family khác không bị ảnh hưởng. |
 | **R74** | Logout thu hồi refresh token của phiên hiện tại (`LOGOUT`), hoặc mọi phiên của user khi `allDevices=true` (`LOGOUT_ALL`). Endpoint idempotent: token không tồn tại hoặc đã thu hồi vẫn trả 204. Access token đã cấp vẫn dùng được tới khi hết hạn (xem L7). |
+| **R75** | Đăng ký tạo tài khoản **chưa xác thực** (`email_verified_at` NULL). Link xác thực sống 24 giờ (`PT24H`), dùng một lần; server chỉ lưu hash SHA-256 của token trong `user_tokens`. |
+| **R76** | Chỉ đăng nhập được khi email đã xác thực. Kiểm tra **sau khi** mật khẩu đúng; trả `403` kèm `code: EMAIL_NOT_VERIFIED`. Sai mật khẩu vẫn chỉ thấy `401` chung như R63, nên không lộ trạng thái xác thực. |
+| **R77** | Gửi lại xác thực và quên mật khẩu **luôn trả 204**, không tiết lộ email có tồn tại, đang bị khóa hay đang trong cooldown. Cooldown 60 giây cho mỗi user và mỗi purpose. Gửi mail lỗi vẫn 204, và token vừa tạo bị xóa để lần gửi lại ngay sau đó không bị cooldown chặn. |
+| **R78** | Link đặt lại mật khẩu sống 30 phút, dùng một lần. Đổi mật khẩu thu hồi **mọi** refresh token của user với lý do `PASSWORD_RESET`, trong cùng transaction với việc đổi mật khẩu. |
+| **R79** | Link trong email chứa token gốc; database chỉ lưu hash. Chỉ `LoggingEmailSender` ở dev được ghi link ra log; SMTP sender ở prod không log token. |
+| **R80** | Đặt lại mật khẩu không tự đăng nhập; user phải đăng nhập lại bằng mật khẩu mới. |
+| **R81** | Đặt lại mật khẩu thành công chứng minh quyền kiểm soát hộp thư, nên cũng đánh dấu email đã xác thực. Đây là đường lấy lại tài khoản khi email đã bị người khác đăng ký trước nhưng chưa xác thực: forgot → reset → login. |
 
 ## N. Quy ước API
 

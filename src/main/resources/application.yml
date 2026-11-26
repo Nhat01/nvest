@@ -16,6 +16,11 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  mail:
+    host: ${SPRING_MAIL_HOST:localhost}
+    port: ${SPRING_MAIL_PORT:1025}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -44,6 +49,14 @@ springdoc:
   swagger-ui:
     enabled: ${NVEST_OPENAPI_ENABLED:true}
 
+# Thêm spring-boot-starter-mail sẽ tự bật health check SMTP. Dev dùng logging
+# sender, không có SMTP ở localhost:1025, nên health sẽ DOWN và /actuator/health
+# trả 503. Chỉ bật lại khi thật sự muốn kiểm tra kết nối SMTP.
+management:
+  health:
+    mail:
+      enabled: ${NVEST_MAIL_HEALTH_ENABLED:false}
+
 nvest:
   kafka:
     enabled: ${NVEST_KAFKA_ENABLED:true}
@@ -61,6 +74,17 @@ nvest:
       tmn-code: ${VNPAY_TMN_CODE:}
       hash-secret: ${VNPAY_HASH_SECRET:}
       return-url: ${NVEST_VNPAY_RETURN_URL:http://localhost:3000/payment/result}
+  mail:
+    enabled: ${NVEST_MAIL_ENABLED:false}
+    from: ${NVEST_MAIL_FROM:no-reply@nvest.local}
+    verification-link: ${NVEST_VERIFICATION_LINK:http://localhost:3000/verify-email?token=}
+    reset-link: ${NVEST_RESET_LINK:http://localhost:3000/reset-password?token=}
+  auth:
+    email-token:
+      # P24H không hợp lệ; ISO-8601 cho 24 giờ là PT24H.
+      verification-ttl: ${NVEST_EMAIL_VERIFICATION_TTL:PT24H}
+      reset-ttl: ${NVEST_PASSWORD_RESET_TTL:PT30M}
+      cooldown: ${NVEST_EMAIL_TOKEN_COOLDOWN:PT60S}
   cors:
     # Origin frontend, cách nhau bởi dấu phẩy. Mặc định là hai origin dev phổ biến;
     # set rỗng để chặn hết, hoặc đổi sang domain thật khi deploy.

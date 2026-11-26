@@ -48,6 +48,7 @@ class LogoutApiIntegrationTest extends AbstractPostgresIntegrationTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD
                                 + "\",\"fullName\":\"Logout Test\"}"))
                 .andExpect(status().isCreated());
+        markEmailVerified(email);
     }
 
     private String loginAndGetRefreshToken(String email) throws Exception {
