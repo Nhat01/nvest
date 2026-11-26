@@ -7,9 +7,16 @@ spring:
   application:
     name: savings-platform
   datasource:
-    url: jdbc:postgresql://localhost:5432/savings
-    username: savings
-    password: savings
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/savings}
+    username: ${SPRING_DATASOURCE_USERNAME:savings}
+    password: ${SPRING_DATASOURCE_PASSWORD:savings}
+    hikari:
+      maximum-pool-size: ${SPRING_DATASOURCE_HIKARI_MAX_POOL_SIZE:10}
+      minimum-idle: ${SPRING_DATASOURCE_HIKARI_MIN_IDLE:2}
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${SPRING_DATASOURCE_HIKARI_IDLE_TIMEOUT:300000}
+      max-lifetime: ${SPRING_DATASOURCE_HIKARI_MAX_LIFETIME:600000}
+      keepalive-time: ${SPRING_DATASOURCE_HIKARI_KEEPALIVE_TIME:60000}
   jpa:
     open-in-view: false
     hibernate:
@@ -60,6 +67,12 @@ management:
 nvest:
   kafka:
     enabled: ${NVEST_KAFKA_ENABLED:true}
+    ssl:
+      ca-cert: ${NVEST_KAFKA_SSL_CA_CERT:}
+      client-cert: ${NVEST_KAFKA_SSL_CLIENT_CERT:}
+      client-key: ${NVEST_KAFKA_SSL_CLIENT_KEY:}
+      key-password: ${NVEST_KAFKA_SSL_KEY_PASSWORD:}
+      endpoint-identification-algorithm: ${NVEST_KAFKA_SSL_ENDPOINT_ID_ALGO:https}
   outbox:
     relay:
       batch-size: 100

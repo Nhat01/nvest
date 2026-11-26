@@ -190,6 +190,16 @@ Image chạy bằng user thường (uid 1001) và nhận các biến sau:
 `NVEST_KAFKA_ENABLED=false` tắt toàn bộ phần Kafka (relay, topic, consumer).
 Khi bật Kafka, cần thêm `KAFKA_BOOTSTRAP_SERVERS`.
 
+## Triển khai Cloud (Render + Neon + Aiven + Uptime)
+
+Hệ thống hỗ trợ triển khai sẵn sàng trên các nền tảng Cloud miễn phí/giá rẻ:
+- **Neon**: Serverless PostgreSQL 16 (tự động chạy migration qua Flyway).
+- **Aiven**: Apache Kafka cluster với xác thực mTLS (SSL).
+- **Render**: Web Service chạy Docker container thông qua `render.yaml`.
+- **UptimeRobot**: Giám sát `/actuator/health` và giữ Render Web Service luôn hoạt động (tránh spin down trên gói Free).
+
+Chi tiết các bước thiết lập và biến môi trường: xem file [render.yaml](render.yaml) và [.env.example](.env.example).
+
 ## CI
 
 `.github/workflows/ci.yml` chạy khi push lên `master`/`main`, khi mở pull
