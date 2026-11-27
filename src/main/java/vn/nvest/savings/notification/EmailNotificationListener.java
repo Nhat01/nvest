@@ -22,7 +22,7 @@ public class EmailNotificationListener {
             id = "email-consumer",
             groupId = "nvest-email",
             topics = {Topics.SAVINGS_EVENTS},
-            concurrency = "3")
+            concurrency = "${nvest.kafka.listener.concurrency:1}")
     public void onEvent(ConsumerRecord<String, String> record) {
         String eventId = header(record, "event-id");
         String eventType = header(record, "event-type");

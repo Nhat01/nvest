@@ -38,6 +38,8 @@ services:
         sync: false
       - key: NVEST_KAFKA_SSL_CLIENT_KEY
         sync: false
+      - key: NVEST_KAFKA_LISTENER_CONCURRENCY
+        value: "1"
 
       # Cổng thanh toán (mock hoặc vnpay)
       - key: NVEST_PAYMENT_PROVIDER
@@ -47,7 +49,7 @@ services:
 
       # Tối ưu bộ nhớ cho Render Free Tier (512MB RAM)
       - key: JAVA_OPTS
-        value: "-XX:MaxRAMPercentage=65 -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
+        value: "-XX:MaxRAMPercentage=60 -XX:InitialRAMPercentage=20 -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
 
       # Tắt tài liệu Swagger trên Production để bảo mật
       - key: NVEST_OPENAPI_ENABLED
@@ -57,6 +59,26 @@ services:
       - key: NVEST_CORS_ALLOWED_ORIGINS
         sync: false
 
-      # Email (false: log token ra console; true: gửi qua SMTP)
+      # Email. Đổi NVEST_MAIL_ENABLED thành "true" sau khi đã test gửi mail ở local.
+      # SPRING_MAIL_USERNAME/PASSWORD là secret: nhập trong dashboard (sync: false).
+      # Gmail: bật 2FA, tạo App Password; dùng port 587 + auth + STARTTLS.
       - key: NVEST_MAIL_ENABLED
+        value: "false"
+      - key: NVEST_MAIL_FROM
+        sync: false
+      - key: SPRING_MAIL_HOST
+        value: "smtp.gmail.com"
+      - key: SPRING_MAIL_PORT
+        value: "587"
+      - key: SPRING_MAIL_USERNAME
+        sync: false
+      - key: SPRING_MAIL_PASSWORD
+        sync: false
+      - key: SPRING_MAIL_SMTP_AUTH
+        value: "true"
+      - key: SPRING_MAIL_SMTP_STARTTLS
+        value: "true"
+      # Giữ false: healthCheckPath của Render là /actuator/health, SMTP lỗi
+      # sẽ làm service bị đánh unhealthy và restart.
+      - key: NVEST_MAIL_HEALTH_ENABLED
         value: "false"
