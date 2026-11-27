@@ -29,4 +29,10 @@ public class LoggingEmailSender implements EmailSender {
         log.info("Password reset email for {} <{}>: {}{}",
                 fullName, to, properties.resetLink(), rawToken);
     }
+
+    @Override
+    public void sendMaturityReminder(String to, String fullName, long accountId, String message) {
+        log.info("Maturity reminder email for {} <{}> on account #{}: {}",
+                fullName, to, accountId, message);
+    }
 }

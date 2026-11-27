@@ -49,4 +49,16 @@ public class SmtpEmailSender implements EmailSender {
                 Nếu bạn không yêu cầu, hãy bỏ qua email này. Mật khẩu hiện tại vẫn dùng được.
                 """.formatted(fullName, properties.resetLink(), rawToken));
     }
+
+    @Override
+    public void sendMaturityReminder(String to, String fullName, long accountId, String message) {
+        send(to, "Nhắc đáo hạn gói tiết kiệm #" + accountId, """
+                Xin chào %s,
+
+                %s
+
+                Trân trọng,
+                Nvest Savings Platform
+                """.formatted(fullName, message));
+    }
 }

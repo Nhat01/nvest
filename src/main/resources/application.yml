@@ -24,10 +24,21 @@ spring:
   flyway:
     enabled: true
   mail:
+    # Local: Mailpit ở localhost:1025. Gmail: host smtp.gmail.com, port 587,
+    # SPRING_MAIL_SMTP_AUTH=true, SPRING_MAIL_SMTP_STARTTLS=true.
+    # Không đặt username/password mặc định ở đây: chỉ nhận từ biến môi trường.
     host: ${SPRING_MAIL_HOST:localhost}
     port: ${SPRING_MAIL_PORT:1025}
     username: ${SPRING_MAIL_USERNAME:}
     password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${SPRING_MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${SPRING_MAIL_SMTP_STARTTLS:false}
+      mail.smtp.starttls.required: ${SPRING_MAIL_SMTP_STARTTLS:false}
+      # Không có timeout thì SMTP treo sẽ làm treo luôn luồng Kafka listener.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 10000
+      mail.smtp.writetimeout: 10000
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:

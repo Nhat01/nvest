@@ -93,7 +93,7 @@ public class NotificationService {
         }
     }
 
-    private static String reminderMessage(SavingsMaturityReminderEvent e) {
+    static String reminderMessage(SavingsMaturityReminderEvent e) {
         String when = e.daysLeft() == 1 ? "ngày mai" : "sau " + e.daysLeft() + " ngày";
         String option = switch (e.maturityOption()) {
             case "RENEW_PRINCIPAL" -> "tái tục gốc, lãi về ví";

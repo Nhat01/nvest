@@ -148,6 +148,38 @@ curl -i -X POST http://localhost:8080/api/auth/reset-password \
 - Đổi TTL/cooldown bằng `NVEST_EMAIL_VERIFICATION_TTL`, `NVEST_PASSWORD_RESET_TTL`,
   `NVEST_EMAIL_TOKEN_COOLDOWN`. Chi tiết trong `docs/business-rules.md` (R75–R81, L10).
 
+### Gửi mail thật khi chạy local (Gmail)
+
+Cần bật 2FA rồi tạo **App Password** (Google Account → Security → App passwords).
+Không dùng mật khẩu Gmail thường và không ghi app password vào
+`application.yml`; chỉ đặt trong biến môi trường.
+
+```powershell
+$env:NVEST_ALLOW_DEV_JWT_SECRET="true"
+$env:NVEST_MAIL_ENABLED="true"
+$env:SPRING_MAIL_HOST="smtp.gmail.com"
+$env:SPRING_MAIL_PORT="587"
+$env:SPRING_MAIL_USERNAME="you@gmail.com"
+$env:SPRING_MAIL_PASSWORD="<app-password-16-ky-tu>"
+$env:SPRING_MAIL_SMTP_AUTH="true"
+$env:SPRING_MAIL_SMTP_STARTTLS="true"
+$env:NVEST_MAIL_FROM="you@gmail.com"
+mvn spring-boot:run
+```
+
+Đăng ký bằng địa chỉ muốn nhận mail (có thể dùng `you+test1@gmail.com` để không
+trùng email đã đăng ký). Nếu SMTP lỗi, đăng ký vẫn trả `201`; xem log để thấy
+`Cannot send verification email` kèm lỗi thật. Gmail phải dùng port `587` với
+`AUTH=true` và `STARTTLS=true`.
+
+Muốn test không cần Gmail, chạy Mailpit và giữ mặc định `localhost:1025`:
+
+```bash
+docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit
+```
+
+Mở http://localhost:8025 để xem mail.
+
 ## Chạy test
 
 ```bash
