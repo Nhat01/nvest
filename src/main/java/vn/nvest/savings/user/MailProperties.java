@@ -3,11 +3,14 @@ package vn.nvest.savings.user;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "nvest.mail")
-public record MailProperties(String from, String verificationLink, String resetLink) {
+public record MailProperties(String from, String fromName, String verificationLink, String resetLink) {
 
     public MailProperties {
         if (from == null || from.isBlank()) {
             from = "no-reply@nvest.local";
+        }
+        if (fromName == null || fromName.isBlank()) {
+            fromName = "Nvest Savings";
         }
         if (verificationLink == null || verificationLink.isBlank()) {
             verificationLink = "http://localhost:3000/verify-email?token=";

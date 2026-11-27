@@ -100,7 +100,8 @@ curl -i -X POST http://localhost:8080/api/auth/logout \
 
 Đăng ký tạo tài khoản **chưa xác thực**. Dev mặc định dùng `LoggingEmailSender`
 nên link nằm trong log; hoặc chạy Mailpit (`localhost:1025`) và đặt
-`NVEST_MAIL_ENABLED=true`.
+`NVEST_MAIL_ENABLED=true`, `NVEST_MAIL_PROVIDER=smtp`. Khi deploy có thể dùng
+`NVEST_MAIL_PROVIDER=brevo` để gửi qua HTTPS (xem bên dưới).
 
 ```bash
 # 1. Đăng ký (201, emailVerified=false). Link xác thực in ra log.
@@ -148,7 +149,16 @@ curl -i -X POST http://localhost:8080/api/auth/reset-password \
 - Đổi TTL/cooldown bằng `NVEST_EMAIL_VERIFICATION_TTL`, `NVEST_PASSWORD_RESET_TTL`,
   `NVEST_EMAIL_TOKEN_COOLDOWN`. Chi tiết trong `docs/business-rules.md` (R75–R81, L10).
 
-### Gửi mail thật khi chạy local (Gmail)
+### Gửi mail thật khi chạy local
+
+Có hai transport, chọn bằng `NVEST_MAIL_PROVIDER`:
+
+- `smtp` (mặc định): JavaMail, dùng Mailpit hoặc Gmail khi chạy local.
+- `brevo`: gọi Brevo HTTP API qua HTTPS `443`. Đây là cách dùng được trên
+  **Render free**, vì Render chặn outbound port `25`, `465`, `587` nên SMTP
+  sẽ timeout dù cấu hình đúng.
+
+#### SMTP với Gmail (chỉ local hoặc server trả tiền)
 
 Cần bật 2FA rồi tạo **App Password** (Google Account → Security → App passwords).
 Không dùng mật khẩu Gmail thường và không ghi app password vào
@@ -157,6 +167,7 @@ Không dùng mật khẩu Gmail thường và không ghi app password vào
 ```powershell
 $env:NVEST_ALLOW_DEV_JWT_SECRET="true"
 $env:NVEST_MAIL_ENABLED="true"
+$env:NVEST_MAIL_PROVIDER="smtp"
 $env:SPRING_MAIL_HOST="smtp.gmail.com"
 $env:SPRING_MAIL_PORT="587"
 $env:SPRING_MAIL_USERNAME="you@gmail.com"
@@ -172,7 +183,28 @@ trùng email đã đăng ký). Nếu SMTP lỗi, đăng ký vẫn trả `201`; x
 `Cannot send verification email` kèm lỗi thật. Gmail phải dùng port `587` với
 `AUTH=true` và `STARTTLS=true`.
 
-Muốn test không cần Gmail, chạy Mailpit và giữ mặc định `localhost:1025`:
+#### Brevo HTTP API (khuyên dùng khi deploy)
+
+1. Tạo tài khoản Brevo và xác minh sender email hoặc domain.
+2. Tạo API key tại Settings → SMTP & API → API Keys.
+3. Chạy:
+
+```powershell
+$env:NVEST_ALLOW_DEV_JWT_SECRET="true"
+$env:NVEST_MAIL_ENABLED="true"
+$env:NVEST_MAIL_PROVIDER="brevo"
+$env:NVEST_MAIL_FROM="sender-da-xac-minh@your-domain.com"
+$env:BREVO_API_KEY="xkeysib-..."
+mvn spring-boot:run
+```
+
+`NVEST_MAIL_FROM` phải trùng sender/domain đã xác minh trong Brevo. Nếu chưa,
+Brevo trả `400` và log có `Cannot send verification email`; đăng ký vẫn trả
+`201` vì lỗi gửi mail không chặn luồng đăng ký.
+
+#### Mailpit (không cần tài khoản)
+
+Chạy Mailpit và giữ mặc định `localhost:1025`:
 
 ```bash
 docker run --rm -p 1025:1025 -p 8025:8025 axllent/mailpit

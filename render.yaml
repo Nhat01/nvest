@@ -59,26 +59,24 @@ services:
       - key: NVEST_CORS_ALLOWED_ORIGINS
         sync: false
 
-      # Email. Đổi NVEST_MAIL_ENABLED thành "true" sau khi đã test gửi mail ở local.
-      # SPRING_MAIL_USERNAME/PASSWORD là secret: nhập trong dashboard (sync: false).
-      # Gmail: bật 2FA, tạo App Password; dùng port 587 + auth + STARTTLS.
+      # Email qua Brevo HTTP API (HTTPS 443). Render free chặn outbound SMTP
+      # port 25/465/587 nên không cấu hình SPRING_MAIL_* ở đây.
+      # NVEST_MAIL_FROM và BREVO_API_KEY nhập trong dashboard (sync: false).
+      # NVEST_MAIL_FROM phải là sender/domain đã xác minh trong Brevo.
+      # Bật/tắt gửi mail. Đặt "true" trong dashboard sau khi đã nhập
+      # BREVO_API_KEY. Dùng sync: false để blueprint không ghi đè giá trị
+      # mỗi lần sync; nếu chưa đặt, app mặc định tắt mail.
       - key: NVEST_MAIL_ENABLED
-        value: "false"
+        sync: false
+      - key: NVEST_MAIL_PROVIDER
+        value: "brevo"
       - key: NVEST_MAIL_FROM
         sync: false
-      - key: SPRING_MAIL_HOST
-        value: "smtp.gmail.com"
-      - key: SPRING_MAIL_PORT
-        value: "587"
-      - key: SPRING_MAIL_USERNAME
+      - key: NVEST_MAIL_FROM_NAME
+        value: "Nvest Savings"
+      - key: BREVO_API_KEY
         sync: false
-      - key: SPRING_MAIL_PASSWORD
-        sync: false
-      - key: SPRING_MAIL_SMTP_AUTH
-        value: "true"
-      - key: SPRING_MAIL_SMTP_STARTTLS
-        value: "true"
-      # Giữ false: healthCheckPath của Render là /actuator/health, SMTP lỗi
-      # sẽ làm service bị đánh unhealthy và restart.
+      # Giữ false: healthCheckPath của Render là /actuator/health. Health SMTP
+      # sẽ DOWN vì không dùng SMTP, làm service bị đánh unhealthy và restart.
       - key: NVEST_MAIL_HEALTH_ENABLED
         value: "false"

@@ -47,6 +47,12 @@ spring:
       mail.smtp.connectiontimeout: 5000
       mail.smtp.timeout: 10000
       mail.smtp.writetimeout: 10000
+  http:
+    client:
+      # Timeout cho RestClient (Brevo). Không có timeout thì HTTP treo sẽ
+      # treo luôn luồng Kafka listener.
+      connect-timeout: 5s
+      read-timeout: 10s
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -111,9 +117,17 @@ nvest:
       return-url: ${NVEST_VNPAY_RETURN_URL:http://localhost:3000/payment/result}
   mail:
     enabled: ${NVEST_MAIL_ENABLED:false}
+    # smtp: JavaMail (Mailpit/Gmail khi chạy local, hoặc server trả tiền).
+    # brevo: HTTP API qua port 443, dùng được trên Render free vì Render
+    # chặn outbound port 25/465/587.
+    provider: ${NVEST_MAIL_PROVIDER:smtp}
     from: ${NVEST_MAIL_FROM:no-reply@nvest.local}
+    from-name: ${NVEST_MAIL_FROM_NAME:Nvest Savings}
     verification-link: ${NVEST_VERIFICATION_LINK:http://localhost:3000/verify-email?token=}
     reset-link: ${NVEST_RESET_LINK:http://localhost:3000/reset-password?token=}
+    brevo:
+      api-key: ${BREVO_API_KEY:}
+      base-url: ${BREVO_BASE_URL:https://api.brevo.com}
   auth:
     email-token:
       # P24H không hợp lệ; ISO-8601 cho 24 giờ là PT24H.

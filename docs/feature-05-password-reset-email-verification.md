@@ -276,8 +276,10 @@ sequenceDiagram
 Nếu mail vẫn tiếp tục lỗi, đó là lỗi hạ tầng chứ không phải lỗi nghiệp vụ:
 
 - Dev: `nvest.mail.enabled=false`, link in ra log của `LoggingEmailSender`.
-- Prod: kiểm tra `SPRING_MAIL_HOST/PORT/USERNAME/PASSWORD`, `NVEST_MAIL_FROM`,
-  và bật `NVEST_MAIL_HEALTH_ENABLED=true` để `/actuator/health` phản ánh tình trạng SMTP.
+- Prod: chọn `NVEST_MAIL_PROVIDER=brevo` (HTTPS 443, dùng được trên Render free)
+  hoặc `smtp` (cần server không chặn port 25/465/587). Kiểm tra `NVEST_MAIL_FROM`
+  và API key/SMTP password tương ứng; giữ `NVEST_MAIL_HEALTH_ENABLED=false` nếu
+  health check của nền tảng dùng chung `/actuator/health`.
 
 ### 4.7 Vòng đời một token
 
@@ -836,14 +838,17 @@ Làm theo thứ tự. Mỗi task nên chạy được test trước khi sang tas
 - `src/main/java/vn/nvest/savings/user/EmailSender.java`
 - `src/main/java/vn/nvest/savings/user/LoggingEmailSender.java`
 - `src/main/java/vn/nvest/savings/user/SmtpEmailSender.java`
+- `src/main/java/vn/nvest/savings/user/BrevoEmailSender.java`
+- `src/main/java/vn/nvest/savings/user/MailConfig.java`
 - `src/main/java/vn/nvest/savings/user/MailProperties.java`
 - `src/main/resources/application.yml`
 
 **Việc cần làm**
 
 - Thêm `spring-boot-starter-mail`.
-- `MailProperties`: `from`, `verificationLink`, `resetLink`.
-- Hai implementation theo `nvest.mail.enabled`.
+- `MailProperties`: `from`, `fromName`, `verificationLink`, `resetLink`.
+- Một `EmailSender` khi tắt mail; khi bật thì chọn `smtp` hoặc `brevo` theo
+  `nvest.mail.provider`.
 - Cấu hình:
   ```yaml
   spring:
@@ -855,9 +860,14 @@ Làm theo thứ tự. Mỗi task nên chạy được test trước khi sang tas
   nvest:
     mail:
       enabled: ${NVEST_MAIL_ENABLED:false}
+      provider: ${NVEST_MAIL_PROVIDER:smtp}
       from: ${NVEST_MAIL_FROM:no-reply@nvest.local}
+      from-name: ${NVEST_MAIL_FROM_NAME:Nvest Savings}
       verification-link: ${NVEST_VERIFICATION_LINK:http://localhost:3000/verify-email?token=}
       reset-link: ${NVEST_RESET_LINK:http://localhost:3000/reset-password?token=}
+      brevo:
+        api-key: ${BREVO_API_KEY:}
+        base-url: ${BREVO_BASE_URL:https://api.brevo.com}
     auth:
       email-token:
         verification-ttl: ${NVEST_EMAIL_VERIFICATION_TTL:PT24H}
